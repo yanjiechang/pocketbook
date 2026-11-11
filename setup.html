@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>接入清单 · 把账本接到 Supabase</title>
+<style>
+:root{
+  --bg:#F7F6F2; --card:#FFFFFF; --ink:#1B1B19; --ink2:#5C5D55; --ink3:#8C8D84;
+  --line:#E6E4DC; --brand:#146B54; --brand-l:#E9F2EF; --warn:#9A6B12; --warn-l:#FBF3E2;
+  --bad:#B03A2E; --bad-l:#FBEDEB;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:15.5px; line-height:1.75; letter-spacing:.01em;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:760px;margin:0 auto;padding:48px 22px 110px}
+
+/* 封面 */
+.cover{border-bottom:2px solid var(--ink);padding-bottom:24px;margin-bottom:34px}
+.kicker{font-size:12px;letter-spacing:.22em;color:var(--brand);font-weight:700;margin-bottom:12px}
+h1{font-size:30px;line-height:1.3;margin:0 0 14px;font-weight:800;letter-spacing:-.01em}
+.sub{color:var(--ink2);font-size:15px;margin:0 0 20px}
+.prog{height:6px;background:var(--line);border-radius:99px;overflow:hidden;margin-bottom:8px}
+.prog .bar{height:100%;width:0;background:var(--brand);border-radius:99px;transition:width .25s ease}
+.ptxt{font-size:12.5px;color:var(--ink3);letter-spacing:.05em;font-variant-numeric:tabular-nums}
+
+/* 分组 */
+.grp{margin:34px 0 0}
+.gh{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+.gh .n{font-size:12px;font-weight:800;color:var(--brand);letter-spacing:.12em}
+.gh h2{font-size:19px;font-weight:800;margin:0;letter-spacing:-.005em}
+.gh .t{margin-left:auto;font-size:12px;color:var(--ink3);letter-spacing:.04em;white-space:nowrap}
+.gdesc{font-size:13.5px;color:var(--ink2);margin:0 0 14px}
+
+/* 条目 */
+.it{display:flex;gap:12px;align-items:flex-start;padding:13px 15px;background:var(--card);
+    border:1px solid var(--line);border-radius:11px;margin-bottom:8px;cursor:pointer;
+    transition:border-color .15s,opacity .15s}
+.it:hover{border-color:#D3D0C4}
+.it input{accent-color:var(--brand);width:17px;height:17px;margin:3px 0 0;flex:0 0 auto;cursor:pointer}
+.tx{flex:1;min-width:0}
+.tx b{display:block;font-weight:700;font-size:14.5px;margin-bottom:2px}
+.tx em{font-style:normal;color:var(--ink2);font-size:13.5px;display:block;line-height:1.7}
+.it.done{opacity:.5;background:#FBFAF7}
+.it.done .tx b{text-decoration:line-through;text-decoration-thickness:1.5px;text-decoration-color:var(--ink3)}
+
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;
+     background:#F1EFE8;padding:1px 5px;border-radius:4px;color:#33352F;word-break:break-all}
+kbd{font-family:inherit;font-size:12.5px;background:#F1EFE8;border:1px solid var(--line);
+    border-bottom-width:2px;border-radius:5px;padding:0 5px}
+
+/* 提示块 */
+.pit{background:var(--warn-l);border-left:3px solid var(--warn);border-radius:0 9px 9px 0;
+     padding:12px 16px;margin:10px 0 14px;font-size:13.5px;color:#6B4C10;line-height:1.7}
+.pit b{color:var(--warn)}
+.ok-note{background:var(--brand-l);border-left:3px solid var(--brand);border-radius:0 9px 9px 0;
+     padding:12px 16px;margin:10px 0 14px;font-size:13.5px;color:#0E4A3A;line-height:1.7}
+
+.hr{height:1px;background:var(--line);margin:44px 0 30px}
+h2.sec{font-size:20px;font-weight:800;margin:0 0 4px}
+.sdesc{font-size:13.5px;color:var(--ink2);margin:0 0 16px}
+
+/* 故障表 */
+.tbl{background:var(--card);border:1px solid var(--line);border-radius:11px;overflow:hidden;margin:16px 0}
+.row{display:flex;gap:0;border-bottom:1px solid var(--line);font-size:13.5px}
+.row:last-child{border-bottom:0}
+.row .c1{padding:11px 14px;flex:0 0 42%;border-right:1px solid var(--line);color:var(--bad);font-weight:600}
+.row .c2{padding:11px 14px;flex:1;color:var(--ink2)}
+.row.head{background:#FCFBF8}
+.row.head .c1,.row.head .c2{color:var(--ink3);font-size:11.5px;letter-spacing:.08em;font-weight:700}
+
+/* 末尾 */
+ul.plain{list-style:none;padding:0;margin:12px 0}
+ul.plain li{padding:7px 0 7px 20px;position:relative;font-size:14.5px;color:var(--ink2)}
+ul.plain li::before{content:"";position:absolute;left:4px;top:16px;width:5px;height:5px;border-radius:50%;background:var(--brand)}
+.foot{margin-top:44px;padding-top:20px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink3)}
+button.reset{margin-top:14px;font:inherit;font-size:12.5px;color:var(--ink3);background:none;
+     border:1px solid var(--line);border-radius:7px;padding:5px 12px;cursor:pointer}
+button.reset:hover{color:var(--bad);border-color:#E2CFCB}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="cover">
+    <div class="kicker">接入清单 · 只做这一遍</div>
+    <h1>把账本接到 Supabase</h1>
+    <p class="sub">01–06 做完，账就能跟着账号走、换设备不丢。07、08 可选。全部操作约 15 分钟，不用写代码。</p>
+    <div class="prog"><div class="bar" id="bar"></div></div>
+    <div class="ptxt" id="ptxt">0 / 13 已完成</div>
+  </div>
+
+  <!-- 01 -->
+  <div class="grp">
+    <div class="gh"><span class="n">01</span><h2>注册 + 建项目</h2><span class="t">约 5 分钟</span></div>
+    <p class="gdesc">免费计划够用，不绑卡。</p>
+
+    <label class="it"><input type="checkbox" data-k="s1"><span class="tx">
+      <b>注册 supabase.com</b>
+      <em>用 GitHub 账号一键登录最省事。免费版 500MB 存储、5 万月活，你这个量一辈子用不到一半。</em>
+    </span></label>
+
+    <label class="it"><input type="checkbox" data-k="s2"><span class="tx">
+      <b>New project：填名字、设数据库密码、选区域</b>
+      <em>名字随便（如 <code>jizhang</code>）。数据库密码要存好，虽然网页版走 API 用不到它。<b>Region 选 Singapore</b>（东京也行，新加坡通常更稳）。</em>
+    </span></label>
+
+    <label class="it"><input type="checkbox" data-k="s3"><span class="tx">
+      <b>等 1–2 分钟初始化完成</b>
+      <em>状态变绿、能看到项目面板就算好了。</em>
+    </span></label>
+
+    <div class="pit">
+      <b>这一条最容易踩：</b>免费项目如果连续 <b>7 天没有任何请求</b>，会自动暂停。暂停后连域名都解析不出来，浏览器报 NXDOMAIN——看着特别像"被墙了"，其实不是。去面板点 <b>Resume / Restore</b> 就能恢复，数据不会丢，一年内都能救回来。你只要每周记一次账就不会触发。
+    </div>
+  </div>
+
+  <!-- 02 -->
+  <div class="grp">
+    <div class="gh"><span class="n">02</span><h2>建表</h2><span class="t">约 1 分钟</span></div>
+    <p class="gdesc">一张表，一个用户一行，整本账存在 <code>payload</code> 里。</p>
+
+    <label class="it"><input type="checkbox" data-k="s4"><span class="tx">
+      <b>打开左侧 SQL Editor → New query</b>
+      <em>把 <code>supabase-建表.sql</code> 整段内容粘进去（或在原型配置页点「点这里复制建表 SQL」按钮）。</em>
+    </span></label>
+
+    <label class="it"><input type="checkbox" data-k="s5"><span class="tx">
+      <b>点 Run，确认提示 Success. No rows returned</b>
+      <em>脚本可重复执行，报错就整段重跑一次。里面除了建表，还配了 RLS 三条策略——那是真正挡住别人看你账本的东西。</em>
+    </span></label>
+  </div>
+
+  <!-- 03 -->
+  <div class="grp">
+    <div class="gh"><span class="n">03</span><h2>关掉邮箱确认</h2><span class="t">30 秒 · 最容易漏</span></div>
+    <p class="gdesc">不关这个，注册完根本登不进去。</p>
+
+    <label class="it"><input type="checkbox" data-k="s6"><span class="tx">
+      <b>Authentication → Sign In / Providers → Email → 关闭 Confirm email → Save</b>
+      <em>不关的话，注册虽然成功，但拿不到登录令牌，登录会一直报「邮箱或密码不对」——而你会以为是自己密码打错了。</em>
+    </span></label>
+  </div>
+
+  <!-- 04 -->
+  <div class="grp">
+    <div class="gh"><span class="n">04</span><h2>抄两个值</h2><span class="t">约 1 分钟</span></div>
+    <p class="gdesc">在 Project Settings → API（新版可能在 API Keys 页）。</p>
+
+    <label class="it"><input type="checkbox" data-k="s7"><span class="tx">
+      <b>复制 Project URL</b>
+      <em>形如 <code>https://abcdefgh.supabase.co</code>，不要带末尾斜杠。</em>
+    </span></label>
+
+    <label class="it"><input type="checkbox" data-k="s8"><span class="tx">
+      <b>复制 anon public key</b>
+      <em>一长串 <code>eyJ...</code>。<b>一定要 anon public</b>，千万别用 service_role——那个绕过 RLS，等于把整库钥匙贴在网页上。anon key 放前端本来就是设计内的事，不构成泄密。</em>
+    </span></label>
+  </div>
+
+  <!-- 05 -->
+  <div class="grp">
+    <div class="gh"><span class="n">05</span><h2>填进原型，跑自检</h2><span class="t">约 2 分钟</span></div>
+    <p class="gdesc">自检通过再注册，别先记真账。</p>
+
+    <label class="it"><input type="checkbox" data-k="s9"><span class="tx">
+      <b>打开 <code>记账原型.html</code>，点登录页右上角 ⚙</b>
+      <em>填 URL 和 key，点「测试连接」。它会一次查五件事：地址通不通、key 对不对、表建没建、RLS 有没有漏、Confirm email 关没关。</em>
+    </span></label>
+
+    <label class="it"><input type="checkbox" data-k="s10"><span class="tx">
+      <b>五项全绿 → 保存 → 注册一个账号</b>
+      <em>注册完应该直接进到账本界面。如果自检有红项，会直接告诉你该改哪一步。</em>
+    </span></label>
+
+    <div class="ok-note">
+      自检里如果出现「<b>没登录就能读到 N 行</b>」这种警告，先别往里记真账——说明 RLS 没生效，回到 02 把建表脚本整段重跑。
+    </div>
+  </div>
+
+  <!-- 06 -->
+  <div class="grp">
+    <div class="gh"><span class="n">06</span><h2>验证跨设备</h2><span class="t">约 2 分钟</span></div>
+    <p class="gdesc">这一步做完，"跟着账号走"才算真的成立。</p>
+
+    <label class="it"><input type="checkbox" data-k="s11"><span class="tx">
+      <b>换一台设备（或手机），同一地址打开、同账号登录</b>
+      <em>能看到同样的账，就成了。反向再试一次：手机上记一笔 → 电脑刷新 → 出现。</em>
+    </span></label>
+  </div>
+
+  <div class="hr"></div>
+
+  <!-- 07 -->
+  <div class="grp">
+    <div class="gh"><span class="n">07</span><h2>可选：上线到 GitHub Pages</h2><span class="t">约 5 分钟</span></div>
+    <p class="gdesc">只为"随时有个网址能开"，不做也行——本地双击 HTML 一样能用。</p>
+
+    <label class="it"><input type="checkbox" data-k="s12"><span class="tx">
+      <b>新建仓库 → 上传 <code>index.html</code> → Settings → Pages → 分支选 main、目录选 / (root) → Save</b>
+      <em>几分钟后拿到 <code>https://你的用户名.github.io/仓库名/</code>。<b>文件名必须是 index.html</b>，Pages 只认这个（目录里的 <code>index.html</code> 已经是最新副本，直接传它）。</em>
+    </span></label>
+
+    <div class="pit">
+      github.io 在国内能开，但偶尔慢。如果在意速度，以后再换腾讯云静态托管（要实名，静态托管本身免费），代码一行都不用改。
+    </div>
+  </div>
+
+  <!-- 08 -->
+  <div class="grp">
+    <div class="gh"><span class="n">08</span><h2>可选：防止项目暂停</h2><span class="t">按需</span></div>
+    <p class="gdesc">正常记账就不会暂停，只有长期不用才会。</p>
+
+    <label class="it"><input type="checkbox" data-k="s13"><span class="tx">
+      <b>决定要不要加个每天自动 ping</b>
+      <em>如果你可能一两个月不打开，就用 GitHub Actions 每天请求一次让它保持活跃。要的话我给你写 workflow 文件。不加也行——反正暂停了数据还在，点 Resume 就回来。</em>
+    </span></label>
+  </div>
+
+  <div class="hr"></div>
+
+  <h2 class="sec">卡住了先看这张表</h2>
+  <p class="sdesc">这五种情况覆盖了 95% 的翻车。</p>
+  <div class="tbl">
+    <div class="row head"><div class="c1">你看到的</div><div class="c2">真正原因 / 怎么解</div></div>
+    <div class="row"><div class="c1">登录报「邮箱或密码不对」</div><div class="c2">Confirm email 没关（步骤 03）。不是密码打错。</div></div>
+    <div class="row"><div class="c1">打开一片空白 / 域名解析不出来</div><div class="c2">项目被暂停了。去 Supabase 面板点 Resume，数据还在。这不是被墙。</div></div>
+    <div class="row"><div class="c1">relation "ledgers" does not exist</div><div class="c2">建表 SQL 没跑或没跑完（步骤 02）。</div></div>
+    <div class="row"><div class="c1">警告「没登录就能读到 N 行」</div><div class="c2">RLS 没生效，整段重跑建表脚本。别忽略这条。</div></div>
+    <div class="row"><div class="c1">第一次打开要等 1–2 秒</div><div class="c2">正常。国内访问新加坡要绕路，之后浏览器复用连接会快很多。不需要翻墙。</div></div>
+  </div>
+
+  <div class="hr"></div>
+
+  <h2 class="sec">这些我可以替你做</h2>
+  <p class="sdesc">做完 01–04，剩下的事情丢给我，你不用自己点。</p>
+  <ul class="plain">
+    <li>把 URL 和 anon key 写进代码里的 <code>PRESET_CFG</code> —— 每台设备打开就能直接登录，不用各填一遍齿轮</li>
+    <li>把 <code>index.html</code> 推上 GitHub、开好 Pages，给你可用网址</li>
+    <li>写每天自动 ping 的 workflow，防止 7 天暂停</li>
+    <li>哪天嫌慢，换成腾讯 CloudBase —— 后端调用已经收在一个适配层里，只改那一块</li>
+  </ul>
+
+  <div class="foot">
+    清单进度只存在这台设备的浏览器里，换设备不会同步。
+    <br><button class="reset" id="reset">清空勾选</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var KEY='jizhang_setup_done';
+  var boxes=[].slice.call(document.querySelectorAll('.it input'));
+  var bar=document.getElementById('bar');
+  var ptxt=document.getElementById('ptxt');
+  var done={};
+  try{ done=JSON.parse(localStorage.getItem(KEY)||'{}')||{}; }catch(e){ done={}; }
+
+  function paint(){
+    var n=0;
+    boxes.forEach(function(b){
+      var on=!!done[b.dataset.k];
+      b.checked=on;
+      b.parentNode.classList.toggle('done',on);
+      if(on)n++;
+    });
+    var pct=boxes.length?Math.round(n/boxes.length*100):0;
+    bar.style.width=pct+'%';
+    ptxt.textContent=n+' / '+boxes.length+' 已完成';
+  }
+
+  boxes.forEach(function(b){
+    b.addEventListener('change',function(){
+      if(b.checked) done[b.dataset.k]=1; else delete done[b.dataset.k];
+      try{ localStorage.setItem(KEY,JSON.stringify(done)); }catch(e){}
+      paint();
+    });
+  });
+
+  document.getElementById('reset').addEventListener('click',function(){
+    done={};
+    try{ localStorage.removeItem(KEY); }catch(e){}
+    paint();
+  });
+
+  paint();
+})();
+</script>
+</body>
+</html>

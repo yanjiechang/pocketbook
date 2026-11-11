@@ -1,0 +1,2243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F4F3EF">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="记账">
+<title>记账</title>
+<style>
+:root{
+  --bg:#F4F3EF; --card:#FFFFFF; --ink:#1B1B19; --ink2:#6E6F66; --ink3:#A3A49B;
+  --line:#EAE8E1; --brand:#146B54; --brand-soft:#E7F0ED;
+  --income:#2C7A5B; --danger:#B03A2E; --warn:#9A6B12;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  background:#D9D7CF;display:flex;align-items:center;justify-content:center;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  color:var(--ink);overflow:hidden;
+}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+
+/* ============ 手机壳 ============ */
+.phone{
+  position:relative;width:390px;height:844px;background:var(--bg);border-radius:42px;overflow:hidden;
+  box-shadow:0 28px 70px rgba(0,0,0,.30),0 0 0 10px #1C1C1A,0 0 0 12px #403F3A;
+}
+.app{position:absolute;inset:0;display:flex;flex-direction:column}
+
+/* ============ 页面 ============ */
+.page{position:absolute;inset:0 0 64px 0;display:none;flex-direction:column;background:var(--bg)}
+.page.active{display:flex}
+
+/* ============ 顶部 ============ */
+.top{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 8px;flex:0 0 auto}
+.datebtn{
+  display:flex;align-items:center;gap:7px;background:none;border:none;font-size:15px;font-weight:600;
+  color:var(--ink);padding:6px 2px;font-family:inherit;cursor:pointer;
+}
+.datebtn .arw{font-size:10px;color:var(--ink3);transform:translateY(1px)}
+.datebtn .today{
+  font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--brand);background:var(--brand-soft);
+  padding:2px 6px;border-radius:5px;margin-left:2px;
+}
+.backdate{font-size:11.5px;color:var(--ink3);letter-spacing:.04em}
+
+/* ============ 分段 ============ */
+.seg{
+  display:flex;gap:4px;background:#E9E7E0;border-radius:10px;padding:3px;margin:4px 18px 2px;flex:0 0 auto;
+}
+.seg-btn{
+  flex:1;border:none;background:none;font-family:inherit;font-size:13.5px;font-weight:600;color:var(--ink2);
+  padding:7px 0;border-radius:8px;cursor:pointer;transition:.16s;
+}
+.seg-btn.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.09)}
+.seg-btn.on.inc{color:var(--income)}
+
+/* ============ 分类宫格 ============ */
+.cats{
+  flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;
+  display:grid;grid-template-columns:repeat(4,1fr);gap:2px 2px;align-content:center;
+  padding:10px 10px 4px;
+}
+.cat{
+  display:flex;flex-direction:column;align-items:center;gap:6px;padding:9px 0 7px;
+  background:none;border:none;cursor:pointer;font-family:inherit;border-radius:12px;
+}
+.cat .ic{
+  width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:21px;background:#fff;transition:transform .14s,box-shadow .14s,background .14s;
+  box-shadow:0 1px 2px rgba(0,0,0,.05);border:1.5px solid transparent;
+}
+.cat .nm{font-size:11.5px;color:var(--ink2);letter-spacing:.02em}
+.cat.on .ic{background:var(--brand-soft);border-color:var(--brand);transform:scale(1.04)}
+.cat.on .nm{color:var(--brand);font-weight:700}
+.cat:active .ic{transform:scale(.94)}
+
+/* 记账页底部概览 */
+.addfoot{
+  flex:0 0 auto;text-align:center;font-size:11.5px;color:var(--ink3);
+  padding:0 20px 2px;letter-spacing:.02em;
+}
+.addfoot b{color:var(--ink2);font-weight:700}
+
+/* ============ 金额条 ============ */
+.amountbar{
+  display:flex;align-items:center;gap:10px;padding:10px 20px 8px;flex:0 0 auto;
+  border-top:1px solid var(--line);background:var(--bg);
+}
+.notebtn{
+  flex:1 1 auto;min-width:0;text-align:left;background:none;border:none;font-family:inherit;
+  font-size:13.5px;color:var(--ink3);padding:8px 0;cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.notebtn.has{color:var(--ink2)}
+.amt{display:flex;align-items:baseline;gap:1px;flex:0 0 auto}
+.amt .cur{font-size:16px;font-weight:600;color:var(--ink2);margin-right:2px}
+.amt .val{font-size:32px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.amt.inc .val{color:var(--income)}
+
+/* ============ 键盘 ============ */
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;padding:6px 12px 0;flex:0 0 auto}
+.key{
+  height:50px;border:none;border-radius:12px;background:#fff;font-family:inherit;
+  font-size:21px;font-weight:600;color:var(--ink);cursor:pointer;
+  box-shadow:0 1px 2px rgba(0,0,0,.06);transition:background .1s;
+  display:flex;align-items:center;justify-content:center;
+}
+.key:active{background:#E4E2DA}
+.key svg{width:22px;height:22px;stroke:var(--ink2);fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+/* ============ 完成按钮 ============ */
+.save{
+  flex:0 0 auto;height:48px;margin:8px 12px 12px;border:none;border-radius:12px;
+  background:var(--brand);color:#fff;font-family:inherit;font-size:16.5px;font-weight:700;
+  letter-spacing:.04em;cursor:pointer;
+}
+.save:active{background:#0E5742}
+.save.inc{background:var(--income)}
+
+/* ============ 月份条 ============ */
+.monthbar{display:flex;align-items:center;justify-content:center;gap:6px;padding:14px 0 6px;flex:0 0 auto}
+.monthbar .nav{
+  width:32px;height:32px;border:none;background:none;font-size:20px;color:var(--ink2);
+  cursor:pointer;border-radius:50%;line-height:1;font-family:inherit;
+}
+.monthbar .nav:active{background:#E6E4DC}
+.monthbar .mt{font-size:16px;font-weight:700;min-width:118px;text-align:center;letter-spacing:.01em}
+
+/* ============ 汇总 ============ */
+.summary{
+  display:flex;margin:6px 16px 12px;background:var(--card);border-radius:14px;padding:16px 4px;
+  flex:0 0 auto;box-shadow:0 1px 3px rgba(0,0,0,.04);
+}
+.summary .it{flex:1;text-align:center;position:relative}
+.summary .it+.it::before{content:"";position:absolute;left:0;top:12%;height:76%;width:1px;background:var(--line)}
+.summary .k{font-size:11px;color:var(--ink3);letter-spacing:.1em;margin-bottom:4px}
+.summary .v{font-size:16.5px;font-weight:800;letter-spacing:-.01em}
+.summary .v.inc{color:var(--income)}
+
+/* ============ 明细列表 ============ */
+.listwrap{flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;padding:0 16px 20px}
+.daygroup{margin-bottom:14px}
+.dayhead{
+  display:flex;justify-content:space-between;align-items:baseline;padding:6px 2px 7px;
+  font-size:12px;color:var(--ink3);letter-spacing:.03em;
+}
+.dayhead .d{font-weight:700;color:var(--ink2);font-size:12.5px}
+.dayhead .d em{font-style:normal;font-weight:400;color:var(--ink3);margin-left:5px}
+.dayhead .sum{padding-left:6px}
+.rec{
+  display:flex;align-items:center;gap:11px;background:var(--card);padding:10px 12px;
+  border-radius:11px;margin-bottom:5px;cursor:pointer;transition:background .12s;
+}
+.rec:active{background:#F0EEE7}
+.rec .ic{
+  width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex:0 0 auto;
+}
+.rec .mid{flex:1 1 auto;min-width:0}
+.rec .c1{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rec .c2{font-size:11.5px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.rec .v{font-size:15px;font-weight:700;letter-spacing:-.01em;flex:0 0 auto}
+.rec .v.inc{color:var(--income)}
+
+/* ============ 空态 ============ */
+.empty{text-align:center;padding:56px 20px;color:var(--ink3)}
+.empty .e1{font-size:34px;opacity:.35;margin-bottom:12px}
+.empty .e2{font-size:13.5px;line-height:1.7}
+
+/* ============ 统计 ============ */
+.statwrap{flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;padding:0 16px 24px}
+.card{background:var(--card);border-radius:14px;padding:18px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.card h4{font-size:12.5px;font-weight:700;color:var(--ink2);letter-spacing:.08em;margin-bottom:16px}
+.ringrow{display:flex;align-items:center;gap:14px}
+.ring{
+  position:relative;width:102px;height:102px;border-radius:50%;flex:0 0 auto;
+  background:conic-gradient(#E9E7E0 0 100%);
+}
+.ring .hole{
+  position:absolute;inset:13px;border-radius:50%;background:#fff;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+}
+.ring .hole .k{font-size:10px;color:var(--ink3);letter-spacing:.08em}
+.ring .hole .v{font-size:14px;font-weight:800;letter-spacing:-.02em}
+.legend{flex:1 1 auto;min-width:0}
+.lg{display:flex;align-items:center;gap:7px;font-size:12px;padding:3.5px 0}
+.lg .dot{width:8px;height:8px;border-radius:2px;flex:0 0 auto}
+.lg .nm{flex:1 1 auto;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lg .pc{color:var(--ink3);font-size:11px;width:30px;text-align:right}
+.lg .am{font-weight:700;width:56px;text-align:right;letter-spacing:-.01em}
+.bars{display:flex;align-items:flex-end;gap:8px;height:132px;padding-top:16px}
+.bcol{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:5px}
+.bcol .bv{font-size:9.5px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.bcol .bar{width:100%;max-width:26px;border-radius:5px 5px 3px 3px;background:#CBD8D3;transition:height .4s}
+.bcol.cur .bar{background:var(--brand)}
+.bcol .bm{font-size:10.5px;color:var(--ink3)}
+.bcol.cur .bm{color:var(--brand);font-weight:700}
+
+/* ============ 我的 ============ */
+.mewrap{flex:1 1 auto;overflow-y:auto;padding:26px 16px 24px}
+.mehead{display:flex;align-items:center;gap:13px;margin-bottom:20px;padding:0 4px}
+.mehead .ava{
+  width:48px;height:48px;border-radius:50%;background:var(--brand);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;
+}
+.mehead .t1{font-size:16px;font-weight:700}
+.mehead .t2{font-size:11.5px;color:var(--ink3);margin-top:2px}
+.datacard{display:flex;background:var(--card);border-radius:14px;padding:15px 4px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.datacard .it{flex:1;text-align:center}
+.datacard .k{font-size:10.5px;color:var(--ink3);letter-spacing:.06em;margin-bottom:3px}
+.datacard .v{font-size:14px;font-weight:800}
+.storecard{background:var(--card);border-radius:14px;padding:15px 16px 13px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.storecard .sc-title{font-size:12px;font-weight:700;color:var(--ink2);letter-spacing:.08em;margin-bottom:10px}
+.storecard .sc-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:5px 0;border-bottom:1px dashed #EFEEE8;font-size:12.5px}
+.storecard .sc-row:last-child{border-bottom:none}
+.storecard .sc-row span{color:var(--ink3);flex:0 0 auto}
+.storecard .sc-row b{font-weight:700;color:var(--ink2);text-align:right;word-break:break-all}
+.group{background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.grow{
+  display:flex;align-items:center;justify-content:space-between;width:100%;padding:15px 16px;
+  background:none;border:none;border-bottom:1px solid var(--line);font-family:inherit;
+  font-size:14.5px;color:var(--ink);cursor:pointer;text-align:left;
+}
+.grow:last-child{border-bottom:none}
+.grow:active{background:#F5F3ED}
+.grow .r{font-size:12px;color:var(--ink3)}
+.grow.danger{color:var(--danger)}
+.grow.rowstatic{cursor:default}
+.grow.rowstatic:active{background:none}
+.tgl{
+  position:relative;width:44px;height:26px;background:#D8D6CE;border-radius:13px;border:none;
+  cursor:pointer;transition:background .2s;flex:0 0 auto;padding:0;
+}
+.tgl::after{
+  content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;
+  background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.25);
+}
+.tgl.on{background:var(--brand)}
+.tgl.on::after{left:21px}
+.tip{font-size:11.5px;color:var(--ink3);line-height:1.75;padding:0 6px 8px}
+
+/* ============ Tabbar ============ */
+.tabbar{
+  position:absolute;left:0;right:0;bottom:0;height:64px;display:flex;z-index:20;
+  background:rgba(252,251,248,.94);backdrop-filter:blur(14px);
+  border-top:1px solid var(--line);
+}
+.tab{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  background:none;border:none;font-family:inherit;cursor:pointer;padding-bottom:2px;
+}
+.tab svg{width:21px;height:21px;fill:none;stroke:#A9AAA1;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;transition:stroke .15s}
+.tab span{font-size:10px;color:#A9AAA1;letter-spacing:.02em;transition:color .15s}
+.tab.on svg{stroke:var(--brand)}
+.tab.on span{color:var(--brand);font-weight:700}
+
+/* ============ Toast ============ */
+.toast{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.94);
+  background:rgba(27,27,25,.92);color:#fff;font-size:13.5px;font-weight:600;
+  padding:11px 20px;border-radius:10px;opacity:0;pointer-events:none;transition:.2s;z-index:100;
+  white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+
+/* ============ 弹层 ============ */
+.mask{position:absolute;inset:0;background:rgba(0,0,0,.32);opacity:0;pointer-events:none;transition:.22s;z-index:40}
+.mask.on{opacity:1;pointer-events:auto}
+.sheet{
+  position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:20px 20px 0 0;
+  padding:8px 18px 22px;transform:translateY(102%);transition:transform .26s cubic-bezier(.32,.72,0,1);z-index:50;
+}
+.sheet.on{transform:translateY(0)}
+.sheet .handle{width:36px;height:4px;border-radius:2px;background:#E2E0D8;margin:0 auto 14px}
+.sheet h3{font-size:16px;font-weight:700;margin-bottom:16px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11.5px;color:var(--ink3);letter-spacing:.06em;margin-bottom:6px}
+.field input{
+  width:100%;border:1px solid var(--line);background:#FAF9F5;border-radius:10px;padding:11px 13px;
+  font-family:inherit;font-size:15px;color:var(--ink);outline:none;
+}
+.field input:focus{border-color:var(--brand);background:#fff}
+.field .mono{font-variant-numeric:tabular-nums;font-size:19px;font-weight:700}
+.sheetacts{display:flex;gap:10px;margin-top:18px}
+.sheetacts button{
+  flex:1;height:46px;border:none;border-radius:11px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;
+}
+.btn-ghost{background:#F0EEE7;color:var(--ink2)}
+.btn-del{background:#FBEBE9;color:var(--danger);flex:0 0 88px!important}
+.btn-main{background:var(--brand);color:#fff}
+
+/* ============ 登录 ============ */
+.authpage{
+  position:absolute;inset:0;z-index:80;background:var(--bg);
+  display:none;flex-direction:column;padding:0 26px;overflow-y:auto;
+}
+.authpage.on{display:flex}
+.authgear{
+  position:absolute;top:14px;right:16px;width:36px;height:36px;border-radius:50%;
+  background:none;border:none;font-size:16px;color:var(--ink3);cursor:pointer;
+}
+.authbrand{padding:74px 0 26px;text-align:center;flex:0 0 auto}
+.authbrand .logo{
+  width:60px;height:60px;border-radius:19px;background:var(--brand);color:#fff;
+  font-size:25px;font-weight:700;display:flex;align-items:center;justify-content:center;
+  margin:0 auto 15px;box-shadow:0 10px 24px rgba(20,107,84,.24);
+}
+.authbrand h1{font-size:20.5px;font-weight:800;letter-spacing:-.01em}
+.authbrand p{font-size:12.5px;color:var(--ink3);margin-top:7px;line-height:1.5}
+.authform{display:flex;flex-direction:column;gap:10px;flex:0 0 auto}
+.authinput{
+  width:100%;height:50px;border:1px solid var(--line);background:#fff;border-radius:14px;
+  padding:0 15px;font-size:15px;font-family:inherit;color:var(--ink);outline:none;
+  transition:border-color .15s,box-shadow .15s;
+}
+.authinput::placeholder{color:#B8B9B0}
+.authinput:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(20,107,84,.10)}
+.authbtn{
+  height:50px;border:none;border-radius:14px;background:var(--brand);color:#fff;
+  font-size:15.5px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:4px;
+  transition:opacity .15s,transform .08s;
+}
+.authbtn:active{transform:scale(.985)}
+.authbtn:disabled{opacity:.5}
+.authbtn.ghost{
+  background:#fff;color:var(--brand);border:1px solid var(--line);
+  font-size:14px;font-weight:600;margin-top:0;
+}
+.authbtn.ghost:active{border-color:var(--brand)}
+.cfgnote{font-size:11.5px;color:var(--ink3);text-align:center;line-height:1.6;margin-top:2px}
+.cfgmysql{
+  background:none;border:1px dashed var(--line);border-radius:12px;padding:10px;
+  font-family:inherit;font-size:12px;color:var(--brand);cursor:pointer;display:none;
+}
+.cfgmysql.show{display:block}
+.authmsg{
+  font-size:12.5px;line-height:1.6;padding:11px 13px;border-radius:12px;display:none;
+}
+.authmsg.show{display:block}
+.authmsg.err{background:#FBEBE8;color:#8E2F24}
+.authmsg.ok{background:var(--brand-soft);color:#0F5442}
+.authfoot{margin-top:auto;padding:26px 0 30px;text-align:center;flex:0 0 auto}
+.authlink{
+  background:none;border:none;font-family:inherit;font-size:13px;color:var(--brand);
+  font-weight:600;cursor:pointer;padding:8px;
+}
+.authrow{display:flex;justify-content:flex-end;margin:-6px 0 -2px}
+.authrow .authlink{font-size:12.5px;font-weight:500;color:var(--ink2);padding:6px 8px}
+.authrow .authlink:active{color:var(--brand)}
+.authalt{font-size:12px;color:var(--ink3);margin-top:4px}
+.authalt button{
+  background:none;border:none;font-family:inherit;font-size:12px;color:var(--ink2);
+  text-decoration:underline;cursor:pointer;padding:4px;
+}
+/* 账号卡片 */
+.acctcard{
+  display:flex;align-items:center;gap:10px;background:#fff;border-radius:15px;
+  padding:13px 14px;margin-bottom:14px;box-shadow:0 1px 2px rgba(0,0,0,.04);
+}
+.acctcard .dot{width:7px;height:7px;border-radius:50%;background:#3FA37C;flex:0 0 auto}
+.acctcard .dot.off{background:#C9C7BE}
+.acctcard .who{flex:1 1 auto;min-width:0}
+.acctcard .mail{
+  font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.acctcard .sub{font-size:11px;color:var(--ink3);margin-top:2px}
+.acctcard .act{
+  background:none;border:none;font-family:inherit;font-size:12.5px;color:var(--ink2);
+  padding:7px 2px;cursor:pointer;flex:0 0 auto;
+}
+
+@media (max-width:520px){
+  body{background:var(--bg);display:block}
+  .phone{width:100%;height:100dvh;height:100vh;border-radius:0;box-shadow:none}
+}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="app">
+
+    <!-- ================= 记账 ================= -->
+    <section class="page active" id="p-add">
+      <div class="top">
+        <button class="datebtn" id="dateBtn">
+          <span id="dateLabel">今天 · 11月10日</span>
+          <span class="today" id="todayTag" style="display:none">今天</span>
+          <span class="arw">▼</span>
+        </button>
+        <span class="backdate" id="backTip"></span>
+      </div>
+
+      <div class="seg">
+        <button class="seg-btn on" data-type="expense">支出</button>
+        <button class="seg-btn" data-type="income">收入</button>
+      </div>
+
+      <div class="cats" id="catGrid"></div>
+
+      <div class="addfoot" id="addFoot"></div>
+
+      <div class="amountbar">
+        <button class="notebtn" id="noteBtn">点这写备注</button>
+        <div class="amt" id="amtBox">
+          <span class="cur">¥</span><span class="val num" id="amtVal">0</span>
+        </div>
+      </div>
+
+      <div class="keypad" id="keypad">
+        <button class="key" data-k="1">1</button>
+        <button class="key" data-k="2">2</button>
+        <button class="key" data-k="3">3</button>
+        <button class="key" data-k="4">4</button>
+        <button class="key" data-k="5">5</button>
+        <button class="key" data-k="6">6</button>
+        <button class="key" data-k="7">7</button>
+        <button class="key" data-k="8">8</button>
+        <button class="key" data-k="9">9</button>
+        <button class="key" data-k=".">.</button>
+        <button class="key" data-k="0">0</button>
+        <button class="key" data-k="del">
+          <svg viewBox="0 0 24 24"><path d="M21 5H9l-6 7 6 7h12a1 1 0 001-1V6a1 1 0 00-1-1z"/><path d="M17 9l-6 6M11 9l6 6"/></svg>
+        </button>
+      </div>
+
+      <button class="save" id="saveBtn">完成</button>
+    </section>
+
+    <!-- ================= 明细 ================= -->
+    <section class="page" id="p-list">
+      <div class="monthbar">
+        <button class="nav" data-mv="-1">‹</button>
+        <div class="mt" id="listMonth">2026年11月</div>
+        <button class="nav" data-mv="1">›</button>
+      </div>
+      <div class="summary">
+        <div class="it"><div class="k">支出</div><div class="v num" id="mExp">0.00</div></div>
+        <div class="it"><div class="k">收入</div><div class="v inc num" id="mInc">0.00</div></div>
+        <div class="it"><div class="k">结余</div><div class="v num" id="mBal">0.00</div></div>
+      </div>
+      <div class="listwrap" id="listWrap"></div>
+    </section>
+
+    <!-- ================= 统计 ================= -->
+    <section class="page" id="p-stat">
+      <div class="monthbar">
+        <button class="nav" data-mv="-1">‹</button>
+        <div class="mt" id="statMonth">2026年11月</div>
+        <button class="nav" data-mv="1">›</button>
+      </div>
+      <div class="seg" style="margin-bottom:10px">
+        <button class="seg-btn on" data-stype="expense">支出</button>
+        <button class="seg-btn" data-stype="income">收入</button>
+      </div>
+      <div class="statwrap">
+        <div class="card">
+          <h4>分类占比</h4>
+          <div class="ringrow">
+            <div class="ring" id="ring">
+              <div class="hole"><span class="k">合计</span><span class="v num" id="ringTotal">¥0</span></div>
+            </div>
+            <div class="legend" id="legend"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h4>近 6 个月趋势</h4>
+          <div class="bars" id="bars"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 我的 ================= -->
+    <section class="page" id="p-me">
+      <div class="mewrap">
+        <div class="mehead">
+          <div class="ava">账</div>
+          <div>
+            <div class="t1">我的账本</div>
+            <div class="t2" id="meSub">数据只存在这台设备</div>
+          </div>
+        </div>
+        <div class="acctcard" id="acctCard">
+          <span class="dot off" id="acctDot"></span>
+          <div class="who">
+            <div class="mail" id="acctMail">未登录</div>
+            <div class="sub" id="acctSub">数据只在本机，换设备看不到</div>
+          </div>
+          <button class="act" id="acctAct">登录</button>
+        </div>
+        <div class="datacard">
+          <div class="it"><div class="k">记录</div><div class="v num" id="dcCount">0 笔</div></div>
+          <div class="it"><div class="k">占用</div><div class="v num" id="dcSize">0 KB</div></div>
+          <div class="it"><div class="k">上次同步</div><div class="v" id="dcBackup">从未</div></div>
+        </div>
+        <div class="storecard">
+          <div class="sc-title">数据存在哪</div>
+          <div class="sc-row"><span>存储方式</span><b id="scMode">浏览器 localStorage</b></div>
+          <div class="sc-row"><span>数据键名</span><b class="num" id="scKey">jizhang_v1</b></div>
+          <div class="sc-row"><span>当前来源</span><b class="num" id="scOrigin">—</b></div>
+          <div class="sc-row"><span>可见范围</span><b id="scScope">仅此设备的此浏览器</b></div>
+        </div>
+        <div class="group">
+          <div class="grow rowstatic">
+            <span>备用同步 · GitHub 私有仓库</span>
+            <span class="r" id="syncState">未配置</span>
+          </div>
+          <button class="grow" id="btnSyncNow"><span>立即同步</span><span class="r">拉取并推送</span></button>
+          <button class="grow" id="btnSyncCfg"><span>账号 / Token 配置</span><span class="r">›</span></button>
+          <div class="grow rowstatic">
+            <span>打开自动拉取 · 保存自动推送</span>
+            <button class="tgl" id="tglAuto" aria-label="自动同步开关"></button>
+          </div>
+        </div>
+        <div class="group">
+          <button class="grow" id="btnExport"><span>导出 JSON 备份</span><span class="r">›</span></button>
+          <button class="grow" id="btnCSV"><span>导出 CSV（Excel 可开）</span><span class="r">›</span></button>
+          <button class="grow" id="btnImport"><span>从备份文件恢复</span><span class="r">›</span></button>
+        </div>
+        <div class="group">
+          <button class="grow" id="btnDemo"><span>载入演示数据</span><span class="r">30 秒看懂</span></button>
+          <button class="grow danger" id="btnClear"><span>清空全部数据</span><span class="r">›</span></button>
+        </div>
+        <p class="tip">
+          登录后账本存在云端数据库里，换手机、换电脑登录同一个邮箱就能看到全部记录。本机同时保留一份缓存，断网也能记账，联网后自动补传。没登录时数据只在本机，换设备就没了——那种情况下每月导出一次 JSON 发给自己。
+        </p>
+      </div>
+    </section>
+
+    <!-- ================= Tabbar ================= -->
+    <nav class="tabbar">
+      <button class="tab on" data-tab="add">
+        <svg viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.1 2.1 0 00-3-3L5 17v3z"/><path d="M14.5 6.5l3 3"/></svg>
+        <span>记账</span>
+      </button>
+      <button class="tab" data-tab="list">
+        <svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1.3"/><circle cx="4" cy="12" r="1.3"/><circle cx="4" cy="18" r="1.3"/></svg>
+        <span>明细</span>
+      </button>
+      <button class="tab" data-tab="stat">
+        <svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-6"/></svg>
+        <span>统计</span>
+      </button>
+      <button class="tab" data-tab="me">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.2-3.8 4-5.6 7.5-5.6s6.3 1.8 7.5 5.6"/></svg>
+        <span>我的</span>
+      </button>
+    </nav>
+
+    <!-- ================= 登录 / 注册 ================= -->
+    <div class="authpage" id="authPage">
+      <button class="authgear" id="authGear" title="后端配置">⚙</button>
+      <div class="authbrand">
+        <div class="logo">账</div>
+        <h1 id="authTitle">登录你的账本</h1>
+        <p id="authSub">换设备、换手机，登进来还是同一本账</p>
+      </div>
+
+      <div class="authform" id="authForm">
+        <input class="authinput" id="auEmail" type="email" inputmode="email"
+               placeholder="邮箱" autocomplete="username" autocapitalize="off" spellcheck="false">
+        <input class="authinput" id="auPass" type="password"
+               placeholder="密码（至少 6 位）" autocomplete="current-password">
+        <input class="authinput" id="auPass2" type="password"
+               placeholder="再输一次密码" autocomplete="new-password" style="display:none">
+        <div class="authrow" id="auForgetRow">
+          <button class="authlink" id="auForgot">忘记密码</button>
+        </div>
+        <div class="authmsg" id="authMsg"></div>
+        <button class="authbtn" id="auGo">登录</button>
+      </div>
+
+      <div class="authform" id="authCfg" style="display:none">
+        <div class="authmsg show ok" style="margin-bottom:2px" id="cfgTip">
+          填一次就够。这两个值在 Supabase 项目里：Settings → API。
+        </div>
+        <input class="authinput" id="cfgUrl" type="text" placeholder="Project URL（https://xxx.supabase.co）"
+               autocapitalize="off" spellcheck="false">
+        <input class="authinput" id="cfgKey" type="password" placeholder="anon public key"
+               autocapitalize="off" spellcheck="false">
+        <div class="authmsg" id="cfgMsg"></div>
+        <button class="authbtn ghost" id="cfgTest">测试连接</button>
+        <button class="authbtn" id="cfgSave">保存并返回</button>
+        <button class="cfgmysql" id="cfgSql">点这里复制建表 SQL（粘到 Supabase SQL Editor 跑一遍）</button>
+        <div class="cfgnote" id="cfgNote">当前后端：Supabase · 换后端不用改账本数据</div>
+      </div>
+
+      <div class="authfoot" id="authFoot">
+        <button class="authlink" id="auToggle">没有账号？注册一个</button>
+        <div class="authalt">不想注册可以 <button id="auGuest">先在这台设备上用</button></div>
+      </div>
+    </div>
+
+    <!-- ================= 浮层 ================= -->
+    <div class="mask" id="mask"></div>
+
+    <div class="sheet" id="editSheet">
+      <div class="handle"></div>
+      <h3>编辑这一笔</h3>
+      <div class="field">
+        <label>金额</label>
+        <input class="mono" id="edAmount" inputmode="decimal" type="text">
+      </div>
+      <div class="field">
+        <label>日期</label>
+        <input id="edDate" type="date">
+      </div>
+      <div class="field">
+        <label>备注</label>
+        <input id="edNote" type="text" placeholder="写点什么">
+      </div>
+      <div class="sheetacts">
+        <button class="btn-del" id="edDel">删除</button>
+        <button class="btn-main" id="edSave">保存</button>
+      </div>
+    </div>
+
+    <div class="sheet" id="noteSheet">
+      <div class="handle"></div>
+      <h3>备注</h3>
+      <div class="field"><input id="nsInput" type="text" placeholder="午饭 / 打车 / 房租…"></div>
+      <div class="sheetacts">
+        <button class="btn-ghost" id="nsCancel">取消</button>
+        <button class="btn-main" id="nsOk">确定</button>
+      </div>
+    </div>
+
+    <div class="sheet" id="syncSheet">
+      <div class="handle"></div>
+      <h3>云同步 · GitHub 私有仓库</h3>
+      <div class="field">
+        <label>GitHub 用户名</label>
+        <input id="syOwner" type="text" placeholder="你的用户名" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>仓库名（务必设为 Private）</label>
+        <input id="syRepo" type="text" placeholder="如 jizhang" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>分支</label>
+        <input id="syBranch" type="text" placeholder="main">
+      </div>
+      <div class="field">
+        <label>访问令牌（Fine-grained PAT）</label>
+        <input id="syToken" type="password" placeholder="github_pat_ 开头" autocomplete="off">
+      </div>
+      <p class="tip" style="margin:0 2px 4px">
+        Token 生成路径：GitHub → Settings → Developer settings → Personal access tokens →
+        Fine-grained tokens → Generate。Repository access 选「Only select repositories」勾这个仓库，
+        Permissions 里 Contents 设为 Read and write。Token 只存在本设备的浏览器里，
+        永远不会随数据上传到仓库。
+      </p>
+      <div class="sheetacts">
+        <button class="btn-ghost" id="syTest">测试连接</button>
+        <button class="btn-main" id="sySave">保存</button>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+    <input type="file" id="fileInput" accept=".json,application/json" style="display:none">
+  </div>
+</div>
+<script>
+'use strict';
+
+/* ===================== 常量 ===================== */
+const KEY = 'jizhang_v1';
+const WD = ['周日','周一','周二','周三','周四','周五','周六'];
+
+const DEFAULT_CATS = [
+  {id:'food',    name:'餐饮', icon:'🍚', type:'expense', color:'#E07A5F'},
+  {id:'traffic', name:'交通', icon:'🚌', type:'expense', color:'#5B8DB8'},
+  {id:'shopping',name:'购物', icon:'🛒', type:'expense', color:'#C86B98'},
+  {id:'home',    name:'居家', icon:'🏠', type:'expense', color:'#8B7BB8'},
+  {id:'fun',     name:'娱乐', icon:'🎮', type:'expense', color:'#D9A62A'},
+  {id:'health',  name:'医疗', icon:'💊', type:'expense', color:'#4FA3A0'},
+  {id:'study',   name:'学习', icon:'📚', type:'expense', color:'#6B8E4E'},
+  {id:'phone',   name:'通讯', icon:'📱', type:'expense', color:'#7A8B99'},
+  {id:'gift',    name:'人情', icon:'🎁', type:'expense', color:'#D4736B'},
+  {id:'other_e', name:'其他', icon:'📦', type:'expense', color:'#9A9A92'},
+  {id:'salary',  name:'工资', icon:'💰', type:'income',  color:'#2C7A5B'},
+  {id:'parttime',name:'兼职', icon:'💼', type:'income',  color:'#4FA3A0'},
+  {id:'invest',  name:'理财', icon:'📈', type:'income',  color:'#D9A62A'},
+  {id:'redpack', name:'红包', icon:'🧧', type:'income',  color:'#D4736B'},
+  {id:'refund',  name:'退款', icon:'↩️', type:'income',  color:'#5B8DB8'},
+  {id:'other_i', name:'其他', icon:'📦', type:'income',  color:'#9A9A92'}
+];
+
+/* ===================== 数据层 ===================== */
+let store = {
+  version:1,
+  updatedAt:0,            /* 本地数据最后修改时间，用于同步判断 */
+  records:[],
+  tombstones:{},          /* 删除墓碑：{id: 删除时间}，防止同步时已删记录复活 */
+  categories:DEFAULT_CATS.slice(),
+  settings:{
+    owner:null,          /* 这份本地缓存属于哪个账号（uid），用来防止换账号串数据 */
+    lastBackupAt:null,
+    sync:null,           /* GitHub 备用同步：{owner, repo, branch, token, auto} */
+    lastSyncAt:0,
+    lastSyncRemoteAt:0,
+    lastSyncErr:null
+  }
+};
+let memOnly = false;
+
+function loadData(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(raw){
+      const d = JSON.parse(raw);
+      if(d && Array.isArray(d.records)){
+        store.records = d.records;
+        store.tombstones = d.tombstones || {};
+        store.categories = (d.categories && d.categories.length) ? d.categories : DEFAULT_CATS.slice();
+        store.updatedAt = d.updatedAt || 0;
+        store.settings = Object.assign(
+          { owner:null, lastBackupAt:null, sync:null, lastSyncAt:0, lastSyncRemoteAt:0, lastSyncErr:null },
+          d.settings||{}
+        );
+      }
+    }
+  }catch(e){ memOnly = true; }
+}
+function saveData(){
+  try{ localStorage.setItem(KEY, JSON.stringify(store)); }
+  catch(e){ memOnly = true; }
+}
+/* 数据有实质修改时调用：更新版本时间 + 落盘 + （配置了自动同步则）防抖推送 */
+function touch(){
+  store.updatedAt = Date.now();
+  saveData();
+  schedulePush();
+}
+
+/* ===================== 工具 ===================== */
+function pad(n){ return n<10 ? '0'+n : ''+n; }
+function ymd(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function todayStr(){ return ymd(new Date()); }
+function monthOf(s){ return s.slice(0,7); }
+function shiftMonth(m, delta){
+  const p = m.split('-').map(Number);
+  const d = new Date(p[0], p[1]-1+delta, 1);
+  return d.getFullYear()+'-'+pad(d.getMonth()+1);
+}
+function fmt(cents){
+  const v = (Math.abs(cents)/100).toFixed(2);
+  return v.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+function fmtMoney(cents){ return '¥' + fmt(cents); }
+function getCat(id){
+  return store.categories.find(c=>c.id===id) || {id:'_',name:'未分类',icon:'❔',color:'#9A9A92'};
+}
+function $(id){ return document.getElementById(id); }
+
+let toastTimer = null;
+function toast(msg){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 1600);
+}
+function buzz(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms||8); }catch(e){} }
+
+/* ===================== 状态 ===================== */
+const S = {
+  type:'expense',
+  catId:'food',
+  buf:'',
+  note:'',
+  date: todayStr(),
+  month: monthOf(todayStr()),
+  statType:'expense'
+};
+
+/* ===================== 记账页 ===================== */
+function renderCats(){
+  const list = store.categories.filter(c=>c.type===S.type);
+  if(!list.length) return;
+  if(!S.catId || !list.some(c=>c.id===S.catId)) S.catId = list[0].id;
+  const g = $('catGrid');
+  g.innerHTML = list.map(c=>
+    '<button class="cat'+(c.id===S.catId?' on':'')+'" data-id="'+c.id+'">'+
+      '<span class="ic">'+c.icon+'</span><span class="nm">'+c.name+'</span>'+
+    '</button>'
+  ).join('');
+  Array.prototype.forEach.call(g.querySelectorAll('.cat'), function(b){
+    b.onclick = function(){ S.catId = b.dataset.id; renderCats(); buzz(6); };
+  });
+}
+
+function renderPad(){
+  $('amtVal').textContent = S.buf === '' ? '0' : S.buf;
+}
+
+/* 记账页底部：本月概览（顺手给自己一个反馈） */
+function renderAddFoot(){
+  const m = monthOf(S.date);
+  const rs = store.records.filter(r=>monthOf(r.date)===m);
+  const el = $('addFoot');
+  if(!rs.length){
+    el.innerHTML = '这个月还没记过账';
+    return;
+  }
+  let exp=0, cnt=0;
+  rs.forEach(r=>{ if(r.type==='expense'){ exp+=r.amount; cnt++; } });
+  const p = m.split('-').map(Number);
+  el.innerHTML = Number(p[1])+'月已记 <b>'+cnt+'</b> 笔支出，共 <b>'+fmtMoney(exp)+'</b>';
+}
+
+function updateNote(){
+  const b = $('noteBtn');
+  if(S.note){ b.textContent = S.note; b.classList.add('has'); }
+  else { b.textContent = '点这写备注'; b.classList.remove('has'); }
+}
+
+function updateDate(){
+  const t = todayStr(), d = S.date;
+  const p = d.split('-').map(Number);
+  const wd = WD[new Date(p[0], p[1]-1, p[2]).getDay()];
+  $('dateLabel').textContent = p[1]+'月'+p[2]+'日 '+wd;
+  $('todayTag').style.display = (d===t) ? '' : 'none';
+  $('backTip').textContent = (d===t) ? '' : '补记';
+}
+
+function pressKey(k){
+  if(k==='del'){
+    S.buf = S.buf.slice(0,-1);
+  } else if(k==='.'){
+    if(S.buf.indexOf('.') >= 0) return;
+    if(S.buf === '') S.buf = '0';
+    S.buf += '.';
+  } else {
+    const dot = S.buf.indexOf('.');
+    if(dot >= 0){
+      if(S.buf.length - dot - 1 >= 2) return;
+    } else {
+      if(S.buf.length >= 7) return;
+      if(S.buf === '0') S.buf = '';
+    }
+    S.buf += k;
+  }
+  renderPad();
+}
+
+function saveRecord(){
+  const cents = Math.round((parseFloat(S.buf)||0) * 100);
+  if(cents <= 0){ toast('先输个金额'); return; }
+  if(!S.catId){ toast('选个分类'); return; }
+  const now = Date.now();
+  store.records.push({
+    id:'r_'+now+'_'+Math.random().toString(36).slice(2,6),
+    type:S.type, amount:cents, catId:S.catId,
+    date:S.date, note:S.note.trim(), ts:now, mt:now
+  });
+  touch();
+  toast((S.type==='expense'?'支出 ':'收入 ')+fmtMoney(cents)+' 已记');
+  buzz(10);
+  /* 保留分类和日期，只清金额和备注 */
+  S.buf = ''; S.note = '';
+  renderPad(); updateNote();
+  S.month = monthOf(S.date);
+  renderList(); renderStat(); renderMe(); renderAddFoot();
+}
+
+/* ===================== 明细页 ===================== */
+function renderList(){
+  $('listMonth').textContent = S.month.slice(0,4)+'年'+Number(S.month.slice(5,7))+'月';
+  const m = S.month;
+  const rs = store.records.filter(r=>monthOf(r.date)===m);
+
+  let exp=0, inc=0;
+  rs.forEach(r=>{ if(r.type==='expense') exp += r.amount; else inc += r.amount; });
+  $('mExp').textContent = fmt(exp);
+  $('mInc').textContent = fmt(inc);
+  const bal = inc - exp;
+  $('mBal').textContent = (bal<0?'-':'') + fmt(bal);
+  $('mBal').style.color = bal < 0 ? 'var(--danger)' : '';
+
+  const wrap = $('listWrap');
+  if(!rs.length){
+    wrap.innerHTML = '<div class="empty"><div class="e1">◔</div><div class="e2">'+
+      m.slice(0,4)+'年'+Number(m.slice(5,7))+'月 还没有记录<br>去「记账」页点两下就有了</div></div>';
+    return;
+  }
+
+  const map = {};
+  rs.forEach(r=>{ (map[r.date] = map[r.date] || []).push(r); });
+  const dates = Object.keys(map).sort().reverse();
+
+  wrap.innerHTML = dates.map(function(d){
+    const items = map[d].slice().sort((a,b)=>b.ts-a.ts);
+    let de=0, di=0;
+    items.forEach(r=>{ if(r.type==='expense') de+=r.amount; else di+=r.amount; });
+    const p = d.split('-').map(Number);
+    const wd = WD[new Date(p[0],p[1]-1,p[2]).getDay()];
+    let head = p[1]+'月'+p[2]+'日 <em>'+wd+'</em>';
+    let sums = [];
+    if(de) sums.push('支 '+fmt(de));
+    if(di) sums.push('收 '+fmt(di));
+
+    const rows = items.map(function(r){
+      const c = getCat(r.catId);
+      const sign = r.type==='expense' ? '-' : '+';
+      return '<div class="rec" data-id="'+r.id+'">'+
+        '<div class="ic" style="background:'+c.color+'22">'+c.icon+'</div>'+
+        '<div class="mid"><div class="c1">'+c.name+'</div>'+
+          (r.note ? '<div class="c2">'+esc(r.note)+'</div>' : '')+
+        '</div>'+
+        '<div class="v num'+(r.type==='income'?' inc':'')+'">'+sign+fmt(r.amount)+'</div>'+
+      '</div>';
+    }).join('');
+
+    return '<div class="daygroup"><div class="dayhead"><div class="d">'+head+'</div>'+
+           '<div class="sum">'+sums.join('　')+'</div></div>'+rows+'</div>';
+  }).join('');
+}
+function esc(s){
+  return String(s).replace(/[&<>"']/g, function(m){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+  });
+}
+
+/* ===================== 统计页 ===================== */
+function renderStat(){
+  $('statMonth').textContent = S.month.slice(0,4)+'年'+Number(S.month.slice(5,7))+'月';
+  const m = S.month, type = S.statType;
+  const rs = store.records.filter(r=>monthOf(r.date)===m && r.type===type);
+  const total = rs.reduce((a,b)=>a+b.amount,0);
+
+  const by = {};
+  rs.forEach(r=>{ by[r.catId] = (by[r.catId]||0) + r.amount; });
+  let arr = Object.keys(by).map(id=>({c:getCat(id), v:by[id]})).sort((a,b)=>b.v-a.v);
+
+  /* 环形图：前 6 项 + 其他 */
+  const TOP = 6;
+  let parts = arr.slice();
+  if(parts.length > TOP){
+    const rest = parts.slice(TOP).reduce((a,b)=>a+b.v,0);
+    parts = parts.slice(0,TOP);
+    parts.push({c:{name:'其余',color:'#C9C7BE'}, v:rest});
+  }
+
+  $('ringTotal').textContent = total ? fmtMoney(total) : '¥0';
+  const ring = $('ring');
+  if(!total){
+    ring.style.background = 'conic-gradient(#E9E7E0 0 100%)';
+  } else {
+    let acc = 0;
+    const stops = parts.map(function(p){
+      const from = acc, to = acc + p.v/total*100;
+      acc = to;
+      return p.c.color+' '+from.toFixed(2)+'% '+to.toFixed(2)+'%';
+    });
+    ring.style.background = 'conic-gradient('+stops.join(',')+')';
+  }
+
+  $('legend').innerHTML = parts.length ? parts.map(function(p){
+    const pct = total ? Math.round(p.v/total*100) : 0;
+    return '<div class="lg"><span class="dot" style="background:'+p.c.color+'"></span>'+
+      '<span class="nm">'+p.c.name+'</span>'+
+      '<span class="pc">'+pct+'%</span>'+
+      '<span class="am num">'+fmt(p.v)+'</span></div>';
+  }).join('') : '<div style="color:var(--ink3);font-size:12.5px;line-height:1.7">这个月还没有'+ (type==='expense'?'支出':'收入') +'记录</div>';
+
+  renderTrend(type);
+}
+
+function renderTrend(type){
+  const months = [];
+  for(let i=5;i>=0;i--) months.push(shiftMonth(S.month, -i));
+  const vals = months.map(function(m){
+    return store.records.filter(r=>monthOf(r.date)===m && r.type===type)
+      .reduce((a,b)=>a+b.amount,0);
+  });
+  const max = Math.max.apply(null, vals.concat([1]));
+  const cur = monthOf(todayStr());
+
+  $('bars').innerHTML = months.map(function(m,i){
+    const h = vals[i] ? Math.max(3, Math.round(vals[i]/max*80)) : 2;
+    const on = (m===cur);
+    return '<div class="bcol'+(on?' cur':'')+'">'+
+      '<div class="bv">'+(vals[i]?Math.round(vals[i]/100):'')+'</div>'+
+      '<div class="bar" style="height:'+h+'px"></div>'+
+      '<div class="bm">'+Number(m.slice(5,7))+'月</div>'+
+    '</div>';
+  }).join('');
+}
+
+/* ===================== 我的页 ===================== */
+function renderMe(){
+  $('dcCount').textContent = store.records.length + ' 笔';
+  const bytes = new Blob([JSON.stringify(store)]).size;
+  $('dcSize').textContent = bytes < 1024 ? bytes+' B' : (bytes/1024).toFixed(1)+' KB';
+
+  const lb = store.settings.lastBackupAt;
+  if(!lb){
+    $('dcBackup').textContent = '从未';
+    $('dcBackup').style.color = 'var(--ink3)';
+  } else {
+    $('dcBackup').textContent = relTime(lb);
+    $('dcBackup').style.color = '';
+  }
+  $('scOrigin').textContent = location.protocol === 'file:'
+    ? '本地文件打开'
+    : (location.origin || location.href);
+  renderSyncState();
+  renderToggle();
+  renderAcct();
+}
+
+/* ===================== 导出 / 导入 ===================== */
+function download(text, name, mime){
+  try{
+    const blob = new Blob([text], {type:mime+';charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 800);
+  }catch(e){ toast('导出失败：'+e.message); }
+}
+
+function exportJSON(){
+  const payload = {
+    app:'jizhang', version:1,
+    exportedAt:new Date().toISOString(),
+    meta:{ updatedAt:Date.now(), device:deviceName() },
+    records:store.records,
+    tombstones:store.tombstones || {},
+    categories:store.categories,
+    /* 注意：导出内容不含同步凭据（token 只留在本设备） */
+    settings:{ lastBackupAt: store.settings.lastBackupAt || 0 }
+  };
+  download(JSON.stringify(payload,null,2), '记账备份_'+todayStr()+'.json', 'application/json');
+  store.settings.lastBackupAt = Date.now();
+  saveData(); renderMe();
+  toast('已导出 '+store.records.length+' 条记录');
+}
+
+function exportCSV(){
+  const head = '日期,类型,分类,金额(元),备注\n';
+  const rows = store.records.slice().sort((a,b)=>a.date<b.date?-1:1).map(function(r){
+    const c = getCat(r.catId);
+    return [r.date, r.type==='expense'?'支出':'收入', c.name, (r.amount/100).toFixed(2), '"'+String(r.note||'').replace(/"/g,'""')+'"'].join(',');
+  }).join('\n');
+  download('\ufeff'+head+rows, '记账明细_'+todayStr()+'.csv', 'text/csv');
+  toast('CSV 已导出');
+}
+
+/* ===================== 账号与云端存储 =====================
+   零依赖：不引 SDK，直接用 fetch 打 GoTrue（/auth/v1）和 PostgREST（/rest/v1）。
+   云端只有一张表 ledgers(user_id, payload jsonb)，一行存整份账本，
+   与「导出 JSON」的格式完全一致，因此合并规则可以直接复用 GitHub 同步那套。
+   本机 localStorage 降级为缓存 + 离线队列，真源在云端。
+
+   【换后端时看这里】
+   业务层（登录界面 / cloudSync / mergeAll / 导出导入）只认 BACKENDS 里那 8 个方法。
+   要换腾讯云 CloudBase 或其他后端，往 BACKENDS 加一项实现同样的方法即可，
+   UI、合并规则、账本格式一行都不用动。
+   需要整体重写的是「Supabase 会话」这一块（令牌刷新、邮件回跳 GoTrue 回包），
+   因为各家认证协议不一样——这是切换成本的大头，不是数据层。
+   账本搬家不用写代码：老后端「导出 JSON」→ 换后端 → 新后端「从备份文件恢复」。
+   ================================================================ */
+
+/* 建表 SQL：配置页检测出「表没建」时可一键复制，内容与 supabase-建表.sql 一致 */
+const SUPA_SQL = `-- 记账本 · Supabase 初始化（Supabase 后台 → SQL Editor → 粘贴 → Run）
+create table if not exists public.ledgers (
+  user_id     uuid primary key references auth.users(id) on delete cascade,
+  payload     jsonb       not null default '{}'::jsonb,
+  updated_at  timestamptz not null default now()
+);
+alter table public.ledgers enable row level security;
+
+drop policy if exists "ledger_select_own" on public.ledgers;
+create policy "ledger_select_own"
+  on public.ledgers for select to authenticated
+  using (auth.uid() = user_id);
+
+drop policy if exists "ledger_insert_own" on public.ledgers;
+create policy "ledger_insert_own"
+  on public.ledgers for insert to authenticated
+  with check (auth.uid() = user_id);
+
+drop policy if exists "ledger_update_own" on public.ledgers;
+create policy "ledger_update_own"
+  on public.ledgers for update to authenticated
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+grant select, insert, update on public.ledgers to authenticated;
+-- 不建 delete 策略：前端永远删不掉整本账。
+-- 还要去 Authentication → Sign In / Providers → Email 关掉 Confirm email。`;
+
+const CFG_KEY  = 'jizhang_supa_cfg';
+const SESS_KEY = 'jizhang_supa_sess';
+
+let sess = null;          /* { access_token, refresh_token, expires_at, user:{id,email} } */
+let supaBusy = false;
+let authMode = 'in';      /* 'in' | 'up' | 'reset' */
+
+/* ---------- 后端适配层：业务代码只认这里的方法 ---------- */
+const BACKENDS = {
+  supabase:{
+    id:'supabase', label:'Supabase',
+    cfgTip:'填一次就够。这两个值在 Supabase 项目里：Settings → API。',
+    urlPh:'Project URL（https://xxx.supabase.co）',
+    keyPh:'anon public key',
+    cfg:supaCfg, saveCfg:supaCfgSave,
+    signIn:suSignIn, signUp:suSignUp, signOut:suSignOut,
+    recover:suRecover, setPassword:suSetPassword,
+    read:cloudRead, write:cloudWrite,
+    explain:friendlyAuthErr,
+    probe:supaProbe, sql:SUPA_SQL
+  }
+};
+function bk(){
+  const c = supaCfg();
+  return BACKENDS[(c && c.type) || 'supabase'] || BACKENDS.supabase;
+}
+
+/* 想「打开就能登录」就把两个值填进 PRESET_CFG，不用进齿轮、不用每台设备各填一次。
+   anon public key 本来就是设计给前端公开用的，写在这里不构成泄密；
+   唯一不能放进来的是 service_role key（它绕过 RLS）。
+   本机 localStorage 里填过的值优先于这里，方便临时改项目。 */
+const PRESET_CFG = null;
+/* 例：const PRESET_CFG = { url:'https://xxxxxxxx.supabase.co', key:'eyJhbGci...' }; */
+
+function supaCfg(){
+  try{
+    const v = JSON.parse(localStorage.getItem(CFG_KEY) || 'null');
+    if(v && v.url && v.key) return { url:v.url, key:v.key, type:v.type || 'supabase' };
+  }catch(e){}
+  if(PRESET_CFG && PRESET_CFG.url && PRESET_CFG.key)
+    return { url:PRESET_CFG.url, key:PRESET_CFG.key, type:'supabase' };
+  return null;
+}
+function supaCfgSave(url, key, type){
+  url = String(url || '').trim().replace(/\/+$/, '');
+  key = String(key || '').trim();
+  if(!/^https?:\/\/[^\s]+$/.test(url)) throw new Error('Project URL 要以 https:// 开头');
+  if(key.length < 20) throw new Error('anon key 太短了，检查有没有复制全');
+  const old = supaCfg();
+  try{ localStorage.setItem(CFG_KEY, JSON.stringify({
+    url:url, key:key, type:type || (old && old.type) || 'supabase'
+  })); }
+  catch(e){ throw new Error('浏览器不允许保存配置'); }
+}
+
+/* ---------- 连接自检：不登录也能查出四个最常见的坑 ---------- */
+async function supaProbe(url, key){
+  const base = String(url || '').trim().replace(/\/+$/, '');
+  const k = String(key || '').trim();
+  if(!/^https?:\/\/[^\s]+$/.test(base)) return { ok:false, msg:'Project URL 要以 https:// 开头，去 Settings → API 复制 Project URL。' };
+  if(k.length < 20) return { ok:false, msg:'anon key 太短了，检查有没有复制全（要 anon public，不是 service_role）。' };
+  const H = { 'apikey':k, 'Authorization':'Bearer ' + k };
+  let r, txt, data;
+  try{
+    r = await fetch(base + '/rest/v1/ledgers?select=user_id&limit=1', { headers:H });
+    txt = await r.text();
+    try{ data = JSON.parse(txt); }catch(e){ data = null; }
+  }catch(e){
+    const local = /^file:/.test(location.protocol)
+      ? ' 另外你现在是双击本地文件打开的，file:// 下浏览器跨域限制更严，把页面放到 GitHub Pages 上再测一次。'
+      : '';
+    return { ok:false, msg:'连不上。多半是免费项目 7 天没活动被自动暂停了——去 supabase.com/dashboard 看有没有 Paused，点 Resume project，数据不丢。' + local };
+  }
+  if(r.status === 401 || r.status === 403 || /invalid api key/i.test(txt))
+    return { ok:false, msg:'anon key 不对。去 Settings → API 复制「anon public」那一串，别用 service_role。' };
+  if(r.status === 404 || /PGRST205|does not exist|relation .*ledgers/i.test(txt))
+    return { ok:false, needSql:true, msg:'地址通了，但 ledgers 表还没建。点下面按钮复制建表 SQL，去 SQL Editor 跑一遍。' };
+  if(!r.ok)
+    return { ok:false, msg:'后端返回 HTTP ' + r.status + '：' + String(txt).slice(0, 120) };
+  if(Array.isArray(data) && data.length > 0)
+    return { ok:false, needSql:true, msg:'危险：没登录就能读到 ' + data.length + ' 行账本，说明 RLS 没生效。重新跑一遍建表 SQL，别先往里记真账。' };
+  /* 顺带看邮箱确认开关：这是「注册成功但登录报密码不对」的头号原因 */
+  let extra = '';
+  try{
+    const s = await fetch(base + '/auth/v1/settings', { headers:H });
+    if(s.ok){
+      const j = await s.json();
+      if(j && j.mailer_autoconfirm === false)
+        extra = ' 还有一步：Authentication → Sign In / Providers → Email → 关掉 Confirm email，否则注册完登录会一直报「密码不对」。';
+    }
+  }catch(e){}
+  return { ok:true, msg:'连上了，表也在，权限看着正常。' + extra + ' 配置已保存，可以注册或登录了。' };
+}
+function copySql(){
+  const ta = document.createElement('textarea');
+  ta.value = bk().sql || '';
+  ta.style.position = 'fixed'; ta.style.left = '-9999px';
+  document.body.appendChild(ta); ta.select();
+  let done = false;
+  try{ done = document.execCommand('copy'); }catch(e){}
+  document.body.removeChild(ta);
+  if(!done && navigator.clipboard) navigator.clipboard.writeText(ta.value).catch(function(){});
+  toast('建表 SQL 已复制，粘到 Supabase SQL Editor 里 Run 一下');
+}
+function sessSave(){
+  try{
+    if(sess) localStorage.setItem(SESS_KEY, JSON.stringify(sess));
+    else localStorage.removeItem(SESS_KEY);
+  }catch(e){}
+}
+function jwtPayload(token){
+  try{
+    const b = token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+    return JSON.parse(decodeURIComponent(escape(atob(b))));
+  }catch(e){ return null; }
+}
+function adoptSession(d){
+  sess = {
+    access_token: d.access_token,
+    refresh_token: d.refresh_token,
+    expires_at: Date.now() + ((d.expires_in || 3600) - 90) * 1000,
+    user: d.user || null
+  };
+  if(!sess.user || !sess.user.id){
+    const p = jwtPayload(sess.access_token);
+    sess.user = { id:(p && p.sub) || null, email:(p && p.email) || '' };
+  }
+  sessSave();
+}
+
+/* 令牌里不一定解得出用户信息（比如邮件回跳的临时令牌），就问一次接口 */
+async function hydrateUser(){
+  if(sess && sess.user && sess.user.id) return true;
+  if(!sess) return false;
+  try{
+    const u = await suFetch('/auth/v1/user');
+    if(u && u.id) sess.user = { id:u.id, email:u.email || '' };
+    sessSave();
+  }catch(e){}
+  return !!(sess && sess.user && sess.user.id);
+}
+
+async function suFetch(path, opt){
+  const c = supaCfg();
+  if(!c) throw new Error('还没配置后端地址');
+  opt = opt || {};
+  if(opt.auth !== false) await ensureFresh();
+  const h = Object.assign({ 'apikey': c.key, 'Content-Type': 'application/json' }, opt.headers || {});
+  if(opt.auth !== false && sess && sess.access_token) h['Authorization'] = 'Bearer ' + sess.access_token;
+  let r;
+  try{
+    r = await fetch(c.url + path, {
+      method: opt.method || 'GET',
+      headers: h,
+      body: (opt.body === undefined ? undefined : JSON.stringify(opt.body))
+    });
+  }catch(e){
+    const local = /^file:/.test(location.protocol)
+      ? ' 现在是双击本地文件打开的，file:// 下跨域限制更严，放到 GitHub Pages 上再试。'
+      : '';
+    throw new Error('连不上服务器。多半是免费项目 7 天没用被自动暂停了——去 supabase.com/dashboard 看有没有 Paused，点 Resume project 就好，数据不会丢。' + local);
+  }
+  const txt = await r.text();
+  let data = null;
+  if(txt){ try{ data = JSON.parse(txt); }catch(e){ data = txt; } }
+  if(!r.ok){
+    const raw = (data && (data.error_description || data.msg || data.message || data.hint || data.error)) || ('HTTP ' + r.status);
+    const err = new Error(String(raw));
+    err.status = r.status;
+    throw err;
+  }
+  return data;
+}
+
+async function refreshSession(){
+  if(!sess || !sess.refresh_token){ sess = null; sessSave(); return false; }
+  try{
+    const d = await suFetch('/auth/v1/token?grant_type=refresh_token', {
+      method:'POST', auth:false, body:{ refresh_token: sess.refresh_token }
+    });
+    if(!d || !d.access_token) throw new Error('no token');
+    adoptSession(d);
+    return true;
+  }catch(e){ sess = null; sessSave(); return false; }
+}
+async function ensureFresh(){
+  if(!sess) return;
+  if(sess.expires_at && sess.expires_at <= Date.now()){
+    const ok = await refreshSession();
+    if(!ok) throw new Error('登录已过期，请重新登录');
+  }
+}
+
+async function suSignIn(email, pass){
+  const d = await suFetch('/auth/v1/token?grant_type=password', {
+    method:'POST', auth:false, body:{ email:email, password:pass }
+  });
+  adoptSession(d);
+}
+async function suSignUp(email, pass){
+  const d = await suFetch('/auth/v1/signup', {
+    method:'POST', auth:false, body:{ email:email, password:pass }
+  });
+  if(d && d.access_token){ adoptSession(d); return 'in'; }
+  return 'confirm';   /* 项目还开着邮箱确认，需要去后台关掉 */
+}
+async function suSignOut(){
+  try{ if(sess) await suFetch('/auth/v1/logout', { method:'POST' }); }
+  catch(e){ /* 令牌已失效，本地登出即可 */ }
+  sess = null; sessSave();
+}
+/* 发重置密码邮件。redirect_to 只有在本页面是 http(s) 托管时才带，
+   file:// 双击打开的没法跳回，只能提示去后台手动改。 */
+async function suRecover(email){
+  const q = /^https?:/.test(location.protocol)
+    ? '?redirect_to=' + encodeURIComponent(location.origin + location.pathname)
+    : '';
+  await suFetch('/auth/v1/recover' + q, { method:'POST', auth:false, body:{ email:email } });
+}
+/* 重置流程里改密码 */
+async function suSetPassword(pass){
+  await suFetch('/auth/v1/user', { method:'PUT', body:{ password:pass } });
+}
+/* 从邮件链接回跳的 #access_token=...&type=recovery 里接住会话 */
+function pickupHashSession(){
+  const h = location.hash || '';
+  if(h.indexOf('access_token=') < 0 && h.indexOf('error_description=') < 0) return null;
+  const q = {};
+  h.replace(/^#/, '').split('&').forEach(function(kv){
+    const i = kv.indexOf('=');
+    if(i > 0) q[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1).replace(/\+/g, ' '));
+  });
+  try{ history.replaceState(null, '', location.pathname + location.search); }catch(e){}
+  if(q.error_description) return { err:q.error_description };
+  if(!q.access_token) return null;
+  adoptSession({
+    access_token:  q.access_token,
+    refresh_token: q.refresh_token,
+    expires_in:    parseInt(q.expires_in, 10) || 3600
+  });
+  return { type: q.type || 'recovery' };
+}
+
+/* ---------- 云端读写（Supabase 实现，业务层经 bk().read / .write 调用） ---------- */
+async function cloudRead(uid){
+  const rows = await suFetch('/rest/v1/ledgers?user_id=eq.' + encodeURIComponent(uid) + '&select=payload,updated_at');
+  const row = rows && rows[0];
+  if(!row || !row.payload || typeof row.payload !== 'object') return null;
+  return row.payload;
+}
+async function cloudWrite(uid, payload){
+  await suFetch('/rest/v1/ledgers', {
+    method:'POST',
+    headers:{ 'Prefer':'resolution=merge-duplicates,return=minimal' },
+    body:[{ user_id: uid, payload: payload, updated_at: new Date().toISOString() }]
+  });
+}
+async function cloudSync(silent){
+  if(!sess || !sess.user || !sess.user.id){ if(!silent) toast('先登录'); return false; }
+  if(supaBusy) return false;
+  supaBusy = true; renderAcct();
+  try{
+    const uid = sess.user.id;
+    const B = bk();
+    const remote = await B.read(uid);
+    if(!remote){
+      /* 云端还没有这人的账本：把本机的推上去 */
+      const p = buildPayload();
+      await B.write(uid, p);
+      applyRemote(p);
+      store.settings.lastSyncRemoteAt = p.meta.updatedAt;
+    }else{
+      const remoteUp = (remote.meta && remote.meta.updatedAt) || 0;
+      const localDirty = (store.updatedAt || 0) > (store.settings.lastSyncAt || 0);
+      if(!localDirty){
+        if(remoteUp !== (store.settings.lastSyncRemoteAt || 0)) applyRemote(remote);
+        store.settings.lastSyncRemoteAt = remoteUp;
+      }else{
+        /* 两边都动过：按 id 并集 + 墓碑过滤，与 GitHub 同步同一套规则 */
+        const p = mergeAll(remote);
+        await B.write(uid, p);
+        applyRemote(p);
+        store.settings.lastSyncRemoteAt = p.meta.updatedAt;
+      }
+    }
+    store.settings.lastSyncAt = Date.now();
+    store.settings.lastSyncErr = null;
+    store.settings.lastBackupAt = Date.now();
+    store.settings.owner = uid;
+    saveData();
+    refreshVisible(); renderAcct();
+    if(!silent) toast('已同步');
+    return true;
+  }catch(e){
+    store.settings.lastSyncErr = String(e.message || e);
+    saveData(); renderAcct();
+    if(!silent) toast('同步失败：' + e.message);
+    return false;
+  }finally{
+    supaBusy = false;
+    renderAcct();
+  }
+}
+/* 只刷新当前看到的那一页，避免打断正在输入金额的用户 */
+function refreshVisible(){
+  const p = document.querySelector('.page.active');
+  if(!p) return;
+  if(p.id === 'p-list') renderList();
+  else if(p.id === 'p-stat') renderStat();
+  else if(p.id === 'p-me') renderMe();
+}
+
+/* ---------- 账号界面 ---------- */
+function authMsg(kind, text){
+  const el = $('authMsg');
+  if(!el) return;
+  if(!text){ el.className = 'authmsg'; el.textContent = ''; return; }
+  el.className = 'authmsg show ' + kind;
+  el.textContent = text;
+}
+function renderAuthMode(){
+  const up  = (authMode === 'up');
+  const rst = (authMode === 'reset');
+  if(rst){
+    $('authTitle').textContent = '设一个新密码';
+    $('authSub').textContent = '邮箱已验证，设完直接用新密码登录';
+    $('auGo').textContent = '保存新密码';
+    $('auEmail').style.display = 'none';
+    $('auPass2').style.display = '';
+    $('auPass').value = ''; $('auPass2').value = '';
+    $('auPass').placeholder = '新密码（至少 6 位）';
+    $('auPass').setAttribute('autocomplete', 'new-password');
+    $('auForgetRow').style.display = 'none';
+    $('auToggle').style.display = 'none';
+    $('auGuest').parentNode.style.display = 'none';
+    return;
+  }
+  $('authTitle').textContent = up ? '注册一个新账本' : '登录你的账本';
+  $('authSub').textContent = up ? '只要邮箱和密码，不用收验证邮件' : '换设备、换手机，登进来还是同一本账';
+  $('auGo').textContent = up ? '注册并登录' : '登录';
+  $('auEmail').style.display = '';
+  $('auPass2').style.display = up ? '' : 'none';
+  $('auPass').setAttribute('autocomplete', up ? 'new-password' : 'current-password');
+  $('auPass').placeholder = up ? '设一个密码（至少 6 位）' : '密码';
+  $('auForgetRow').style.display = up ? 'none' : '';
+  $('auToggle').style.display = '';
+  $('auToggle').textContent = up ? '已有账号？直接登录' : '没有账号？注册一个';
+  $('auGuest').parentNode.style.display = '';
+}
+function showAuth(on){
+  $('authPage').classList.toggle('on', !!on);
+  if(on){ authMsg('', ''); renderAuthMode(); }
+}
+function openCfg(){
+  const B = bk();
+  $('authForm').style.display = 'none';
+  $('authFoot').style.display = 'none';
+  $('authCfg').style.display = 'flex';
+  $('authTitle').textContent = '连接你的后端';
+  $('authSub').textContent = B.label + ' 的两个值，填一次就够';
+  $('cfgTip').textContent = B.cfgTip;
+  $('cfgUrl').placeholder = B.urlPh;
+  $('cfgKey').placeholder = B.keyPh;
+  $('cfgNote').textContent = '当前后端：' + B.label + ' · 换后端不用动账本数据';
+  const c = B.cfg();
+  $('cfgUrl').value = c ? c.url : '';
+  $('cfgKey').value = c ? c.key : '';
+  $('cfgMsg').className = 'authmsg';
+  $('cfgMsg').textContent = '';
+  $('cfgSql').classList.remove('show');
+}
+function closeCfg(){
+  $('authCfg').style.display = 'none';
+  $('authForm').style.display = 'flex';
+  $('authFoot').style.display = '';
+  renderAuthMode();
+}
+function renderAcct(){
+  if(!$('acctMail')) return;
+  const on = !!(sess && sess.user && sess.user.id);
+  const mail = on ? (sess.user.email || '已登录') : '';
+  $('acctDot').classList.toggle('off', !on);
+  $('acctMail').textContent = on ? mail : '未登录';
+  let sub;
+  if(!on) sub = '数据只在本机，换设备看不到';
+  else if(supaBusy) sub = '正在同步…';
+  else if(store.settings.lastSyncErr) sub = '同步出错：' + store.settings.lastSyncErr;
+  else if(store.settings.lastSyncAt) sub = '云端已同步 · ' + relTime(store.settings.lastSyncAt);
+  else sub = '已登录，等待首次同步';
+  $('acctSub').textContent = sub;
+  $('acctAct').textContent = on ? '退出' : '登录';
+  $('acctAct').onclick = on ? doSignOut : function(){ showAuth(true); };
+  if($('scMode')) $('scMode').textContent = on ? '云端 ' + bk().label + ' + 本机缓存' : '浏览器 localStorage';
+  if($('scScope')) $('scScope').textContent = on ? '只有你这个账号能看到' : '仅此设备的此浏览器';
+  $('meSub').textContent = on
+    ? ('账号同步 · ' + mail)
+    : (memOnly ? '⚠ 当前环境无法保存数据' : '数据只存在这台设备');
+}
+function resetStore(){
+  store.records = [];
+  store.tombstones = {};
+  store.categories = DEFAULT_CATS.slice();
+  store.updatedAt = 0;
+  store.settings.lastBackupAt = null;
+  store.settings.lastSyncAt = 0;
+  store.settings.lastSyncRemoteAt = 0;
+  store.settings.lastSyncErr = null;
+  saveData();
+}
+function afterAuth(){
+  const uid = sess && sess.user && sess.user.id;
+  if(!uid) return;
+  const prev = store.settings.owner;
+  if(prev && prev !== uid) resetStore();   /* 换了账号，清掉上一个账号的残留 */
+  store.settings.owner = uid;
+  saveData();
+}
+async function doSignOut(){
+  if(!confirm('退出后本机缓存会被清掉，云端数据保留，下次登录还能取回。确定退出？')) return;
+  await bk().signOut();
+  resetStore();
+  store.settings.owner = null;
+  saveData();
+  renderAll(); renderMe();
+  showAuth(true);
+  toast('已退出');
+}
+function friendlyAuthErr(msg){
+  const m = String(msg || '');
+  if(/invalid login credentials|invalid_grant/i.test(m))
+    return '邮箱或密码不对。如果刚注册成功，多半是项目还开着「Confirm email」，去后台关掉再来。';
+  if(/user already registered|already been registered|email address.*already/i.test(m))
+    return '这个邮箱已经注册过了，直接点「已有账号」登录。';
+  if(/email not confirmed/i.test(m))
+    return '邮箱还没确认。Supabase 后台 → Authentication → Sign In / Providers → Email → 关掉 Confirm email。';
+  if(/password/i.test(m) && /(short|weak|least|characters)/i.test(m)) return '密码太短，至少要 6 位。';
+  if(/rate limit|too many|over_email_send_rate|once every|security purposes/i.test(m)) return '试得太频繁了，等一分钟再试。';
+  if(/relation .*ledgers.* does not exist|does not exist/i.test(m)) return '云端还没建表，按文档里那段 SQL 跑一遍。';
+  if(/permission denied|row-level security/i.test(m)) return '数据权限没配好，检查 RLS 策略。';
+  if(/连不上服务器|Failed to fetch|NetworkError/i.test(m)){
+    if(/supabase\.com\/dashboard|Resume/i.test(m)) return m;
+    return '连不上服务器。去 supabase.com/dashboard 看看项目是不是被暂停了——免费版 7 天不用会自动暂停，点 Resume project 就能恢复，数据不丢。';
+  }
+  return m || '出错了，再试一次';
+}
+async function enterApp(){
+  if(!sess || !sess.user || !sess.user.id) await hydrateUser();
+  if(!sess || !sess.user || !sess.user.id){ authMsg('err','登录成功但没拿到账号信息，刷新页面试试'); return; }
+  afterAuth();
+  $('auPass').value = '';
+  $('auPass2').value = '';
+  showAuth(false);
+  renderAll(); renderMe(); renderAcct();
+  const ok = await cloudSync(false);
+  if(ok) toast('账本已同步');
+}
+async function submitAuth(){
+  if(!supaCfg()){ openCfg(); return; }
+  /* 重置密码：邮箱已验证过，只要新密码 */
+  if(authMode === 'reset'){
+    const p1 = $('auPass').value || '', p2 = $('auPass2').value || '';
+    if(p1.length < 6){ authMsg('err','密码至少 6 位'); return; }
+    if(p1 !== p2){ authMsg('err','两次输入的密码不一致'); return; }
+    const b = $('auGo'), o = b.textContent;
+    b.disabled = true; b.textContent = '保存中…';
+    try{
+      await bk().setPassword(p1);
+      authMode = 'in';
+      await enterApp();
+      toast('密码已更新');
+    }catch(e){
+      authMsg('err', bk().explain(e.message));
+    }finally{
+      b.disabled = false; b.textContent = o;
+    }
+    return;
+  }
+  const email = ($('auEmail').value || '').trim();
+  const pass  = $('auPass').value || '';
+  const pass2 = $('auPass2').value || '';
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ authMsg('err','邮箱格式不对'); return; }
+  if(pass.length < 6){ authMsg('err','密码至少 6 位'); return; }
+  if(authMode === 'up' && pass !== pass2){ authMsg('err','两次输入的密码不一致'); return; }
+  const btn = $('auGo');
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = '请稍等…';
+  try{
+    if(authMode === 'up'){
+      const r = await bk().signUp(email, pass);
+      if(r === 'confirm'){
+        authMsg('ok','注册成功，但项目还开着邮箱确认。去 Supabase → Authentication → Sign In / Providers → 关掉 Confirm email，再回来登录。');
+        authMode = 'in'; renderAuthMode();
+        return;
+      }
+    }else{
+      await bk().signIn(email, pass);
+    }
+    await enterApp();
+  }catch(e){
+    authMsg('err', bk().explain(e.message));
+  }finally{
+    btn.disabled = false; btn.textContent = old;
+  }
+}
+function bindAuth(){
+  $('auGo').onclick = submitAuth;
+  $('auPass').onkeydown  = function(e){ if(e.key === 'Enter') submitAuth(); };
+  $('auPass2').onkeydown = function(e){ if(e.key === 'Enter') submitAuth(); };
+  $('auEmail').onkeydown = function(e){ if(e.key === 'Enter') $('auPass').focus(); };
+  $('auToggle').onclick = function(){
+    authMode = (authMode === 'in') ? 'up' : 'in';
+    authMsg('', ''); renderAuthMode();
+  };
+  $('auGuest').onclick = function(){ showAuth(false); };
+  $('auForgot').onclick = async function(){
+    if(!supaCfg()){ openCfg(); return; }
+    const email = ($('auEmail').value || '').trim();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+      authMsg('err','先把上面的邮箱填好，再点重置');
+      $('auEmail').focus();
+      return;
+    }
+    const self = this;
+    self.disabled = true;
+    authMsg('ok', '正在发重置邮件…');
+    try{
+      await bk().recover(email);
+      if(/^https?:/.test(location.protocol)){
+        authMsg('ok', '邮件已发到 ' + email + '。点邮件里的链接，会自动回到这里让你设新密码。');
+      }else{
+        authMsg('ok', '邮件已发到 ' + email + '。但你现在是双击本地文件打开的，邮件链接跳不回来——'
+          + '去 Supabase 后台 Authentication → Users 里改，或者把页面放到 GitHub Pages 上再用这个功能。');
+      }
+    }catch(e){
+      authMsg('err', bk().explain(e.message));
+    }finally{
+      self.disabled = false;
+    }
+  };
+  $('authGear').onclick = openCfg;
+  $('cfgSave').onclick = function(){
+    try{
+      bk().saveCfg($('cfgUrl').value, $('cfgKey').value);
+      $('cfgMsg').className = 'authmsg show ok';
+      $('cfgMsg').textContent = '已保存';
+      setTimeout(closeCfg, 450);
+    }catch(e){
+      $('cfgMsg').className = 'authmsg show err';
+      $('cfgMsg').textContent = e.message;
+    }
+  };
+  /* 不登录就能体检：地址、key、表、RLS、Confirm email 一次查完 */
+  $('cfgTest').onclick = async function(){
+    const b = this, old = b.textContent;
+    const m = $('cfgMsg');
+    b.disabled = true; b.textContent = '正在检测…';
+    m.className = 'authmsg show ok';
+    m.textContent = '正在连你的项目…（首次连境外节点可能要 1–2 秒）';
+    $('cfgSql').classList.remove('show');
+    try{
+      const r = await bk().probe($('cfgUrl').value, $('cfgKey').value);
+      m.className = 'authmsg show ' + (r.ok ? 'ok' : 'err');
+      m.textContent = r.msg;
+      $('cfgSql').classList.toggle('show', !!r.needSql);
+      if(r.ok){
+        try{ bk().saveCfg($('cfgUrl').value, $('cfgKey').value); }catch(e){}
+      }
+    }catch(e){
+      m.className = 'authmsg show err';
+      m.textContent = '检测出错：' + (e.message || e);
+    }finally{
+      b.disabled = false; b.textContent = old;
+    }
+  };
+  $('cfgSql').onclick = copySql;
+  ['auEmail','auPass','auPass2'].forEach(function(id){
+    $(id).addEventListener('input', function(){ authMsg('', ''); });
+  });
+}
+
+/* ===================== 云同步（GitHub 私有仓库） =====================
+ * 原理：整份账本作为一个 JSON 文件推到你 GitHub 私有仓库的
+ * jizhang/data.json，每次同步是一次 commit（git 历史 = 免费版本备份）。
+ * 合并规则：按记录 id 取并集，同 id 取修改时间新者；删除靠墓碑；
+ * 两边分类不一致时取"最后修改"一边。
+ * 安全：token 只存本设备 localStorage，从不进云端文件。
+ * ================================================================ */
+function b64e(str){
+  const b = new TextEncoder().encode(str);
+  let s = '';
+  for(let i=0;i<b.length;i++) s += String.fromCharCode(b[i]);
+  return btoa(s);
+}
+function b64d(s){
+  const bin = atob(String(s).replace(/\n/g,''));
+  const b = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) b[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(b);
+}
+function syncCfg(){ const s = store.settings.sync; return (s && s.owner && s.repo && s.token) ? s : null; }
+function ghHeaders(){
+  return {
+    'Authorization':'Bearer ' + store.settings.sync.token,
+    'Accept':'application/vnd.github+json',
+    'X-GitHub-Api-Version':'2022-11-28'
+  };
+}
+function deviceName(){
+  const u = navigator.userAgent;
+  if(/iPhone/.test(u)) return 'iPhone';
+  if(/iPad/.test(u)) return 'iPad';
+  if(/Android/.test(u)) return 'Android';
+  if(/Windows/.test(u)) return 'Windows';
+  if(/Mac/.test(u)) return 'Mac';
+  return '浏览器';
+}
+function relTime(t){
+  if(!t) return '';
+  const s = Math.floor((Date.now()-t)/1000);
+  if(s < 60) return '刚刚';
+  if(s < 3600) return Math.floor(s/60)+' 分钟前';
+  if(s < 86400) return Math.floor(s/3600)+' 小时前';
+  return Math.floor(s/86400)+' 天前';
+}
+
+async function ghGetFile(){
+  const c = syncCfg();
+  const url = 'https://api.github.com/repos/'+c.owner+'/'+c.repo+
+             '/contents/jizhang/data.json?ref='+(c.branch||'main')+'&t='+Date.now();
+  const r = await fetch(url, {headers:ghHeaders(), cache:'no-store'});
+  if(r.status === 404) return null;
+  if(!r.ok){
+    const e = await r.json().catch(function(){ return {}; });
+    throw new Error('读取失败：'+(e.message || ('HTTP '+r.status)));
+  }
+  const j = await r.json();
+  return { sha:j.sha, data:JSON.parse(b64d(j.content)) };
+}
+async function ghPutFile(payload, sha){
+  const c = syncCfg();
+  const body = {
+    message:'记账同步 · '+deviceName()+' · '+new Date().toLocaleString('zh-CN'),
+    content:b64e(JSON.stringify(payload)),
+    branch:c.branch||'main'
+  };
+  if(sha) body.sha = sha;
+  const r = await fetch('https://api.github.com/repos/'+c.owner+'/'+c.repo+'/contents/jizhang/data.json', {
+    method:'PUT',
+    headers:Object.assign({'Content-Type':'application/json'}, ghHeaders()),
+    body:JSON.stringify(body)
+  });
+  if(!r.ok){
+    const e = await r.json().catch(function(){ return {}; });
+    throw new Error('推送失败：'+(e.message || ('HTTP '+r.status)));
+  }
+  return r.json();
+}
+
+function buildPayload(){
+  return {
+    app:'jizhang', version:1,
+    meta:{ updatedAt:Date.now(), device:deviceName() },
+    records:store.records,
+    tombstones:store.tombstones || {},
+    categories:store.categories,
+    settings:{ lastBackupAt:store.settings.lastBackupAt || 0 }
+  };
+}
+function applyRemote(p){
+  store.records = p.records || [];
+  store.tombstones = p.tombstones || {};
+  if(Array.isArray(p.categories) && p.categories.length) store.categories = p.categories;
+  if(p.settings && p.settings.lastBackupAt)
+    store.settings.lastBackupAt = Math.max(store.settings.lastBackupAt||0, p.settings.lastBackupAt);
+  store.updatedAt = (p.meta && p.meta.updatedAt) || Date.now();
+}
+/* 两边都改过时的合并 */
+function mergeAll(remote){
+  const tomb = Object.assign({}, remote.tombstones||{}, store.tombstones||{});
+  const map = {};
+  (remote.records||[]).forEach(function(r){ map[r.id] = r; });
+  store.records.forEach(function(r){
+    const ex = map[r.id];
+    if(!ex || (r.mt||r.ts||0) > (ex.mt||ex.ts||0)) map[r.id] = r;
+  });
+  const records = Object.keys(map).map(function(k){ return map[k]; })
+    .filter(function(r){ return !tomb[r.id]; });
+  const remoteNewer = ((remote.meta||{}).updatedAt||0) > (store.updatedAt||0);
+  const cats = remoteNewer ? (remote.categories||store.categories) : (store.categories||remote.categories);
+  const lb = Math.max(store.settings.lastBackupAt||0, (remote.settings||{}).lastBackupAt||0);
+  return {
+    app:'jizhang', version:1,
+    meta:{ updatedAt:Date.now(), device:deviceName() },
+    records:records, tombstones:tomb, categories:cats,
+    settings:{ lastBackupAt:lb }
+  };
+}
+
+let syncing = false;
+async function syncNow(silent, isRetry){
+  const cfg = syncCfg();
+  if(!cfg){ if(!silent) toast('先在配置里填好账号和 Token'); return false; }
+  if(syncing) return false;
+  syncing = true;
+  renderSyncState('syncing');
+  try{
+    const remote = await ghGetFile();
+    const localDirty = store.updatedAt > (store.settings.lastSyncAt||0);
+
+    if(!remote){
+      /* 远端还没有数据：直接把本地推上去 */
+      const p = buildPayload();
+      await ghPutFile(p, null);
+      applyRemote(p);
+      store.settings.lastSyncRemoteAt = p.meta.updatedAt;
+    } else {
+      const remoteUp = (remote.data.meta && remote.data.meta.updatedAt) || 0;
+      const remembered = store.settings.lastSyncRemoteAt || 0;
+      if(remoteUp === remembered && !localDirty){
+        /* 两边都没变 */
+      } else if(!localDirty){
+        /* 本地没改：直接采纳远端整份 */
+        applyRemote(remote.data);
+        store.settings.lastSyncRemoteAt = remoteUp;
+      } else {
+        /* 至少本地有改动：合并（远端可能也被另一台设备改了） */
+        const p = mergeAll(remote.data);
+        await ghPutFile(p, remote.sha);
+        applyRemote(p);
+        store.settings.lastSyncRemoteAt = p.meta.updatedAt;
+      }
+    }
+    store.settings.lastSyncAt = Date.now();
+    store.settings.lastSyncErr = null;
+    /* 云端有副本，视作完成了一次备份 */
+    if(!store.settings.lastBackupAt || Date.now() - store.settings.lastBackupAt > 3600000)
+      store.settings.lastBackupAt = Date.now();
+    saveData(); renderAll();
+    renderSyncState();
+    if(!silent) toast('已同步');
+    return true;
+  }catch(e){
+    /* 远端刚被别台设备推过（sha 冲突）：自动重试一次 */
+    if(!isRetry && /conflict|409|does not match/i.test(String(e.message||e))){
+      await new Promise(function(res){ setTimeout(res, 800); });
+      syncing = false;
+      return syncNow(silent, true);
+    }
+    store.settings.lastSyncErr = String(e.message || e);
+    saveData(); renderSyncState();
+    if(!silent) toast('同步失败：'+e.message);
+    return false;
+  } finally {
+    syncing = false;
+  }
+}
+
+/* 保存后防抖推送：登录了走云端，否则看有没有配 GitHub */
+let pushTimer = null;
+function schedulePush(){
+  clearTimeout(pushTimer);
+  if(sess){
+    pushTimer = setTimeout(function(){ cloudSync(true); }, 2500);
+    return;
+  }
+  const cfg = syncCfg();
+  if(!cfg || !cfg.auto) return;
+  pushTimer = setTimeout(function(){ syncNow(true); }, 3000);
+}
+
+/* ===================== 同步界面 ===================== */
+function renderSyncState(mode){
+  const el = $('syncState');
+  if(!el) return;
+  if(mode === 'syncing'){ el.textContent='同步中…'; el.style.color='var(--warn)'; return; }
+  if(!syncCfg()){ el.textContent='未配置'; el.style.color='var(--ink3)'; return; }
+  if(store.settings.lastSyncErr){
+    el.textContent='上次失败'; el.style.color='var(--danger)';
+  } else if(store.settings.lastSyncAt){
+    el.textContent='已同步 · '+relTime(store.settings.lastSyncAt);
+    el.style.color='var(--brand)';
+  } else {
+    el.textContent='已配置'; el.style.color='var(--ink2)';
+  }
+}
+function renderToggle(){
+  const t = $('tglAuto');
+  const cfg = syncCfg();
+  t.classList.toggle('on', !!(cfg && cfg.auto));
+}
+
+function bindSync(){
+  $('btnSyncCfg').onclick = function(){
+    const c = store.settings.sync || {};
+    $('syOwner').value = c.owner || '';
+    $('syRepo').value = c.repo || '';
+    $('syBranch').value = c.branch || 'main';
+    $('syToken').value = c.token || '';
+    openSheet($('syncSheet'));
+  };
+  $('sySave').onclick = function(){
+    const owner = $('syOwner').value.trim(), repo = $('syRepo').value.trim();
+    const branch = $('syBranch').value.trim() || 'main';
+    const token = $('syToken').value.trim();
+    if(!owner || !repo || !token){ toast('用户名、仓库、Token 都要填'); return; }
+    const old = store.settings.sync || {};
+    store.settings.sync = { owner:owner, repo:repo, branch:branch, token:token, auto:(old.auto!==false) };
+    saveData(); closeSheets();
+    renderSyncState(); renderToggle();
+    toast('已保存，点「立即同步」试一次');
+  };
+  $('syTest').onclick = async function(){
+    const owner = $('syOwner').value.trim(), repo = $('syRepo').value.trim();
+    const token = $('syToken').value.trim();
+    if(!owner || !repo || !token){ toast('先填完整再测'); return; }
+    toast('连接中…');
+    try{
+      const r = await fetch('https://api.github.com/repos/'+owner+'/'+repo, {
+        headers:{ 'Authorization':'Bearer '+token, 'Accept':'application/vnd.github+json' }
+      });
+      if(!r.ok){
+        const e = await r.json().catch(function(){ return {}; });
+        throw new Error(e.message || ('HTTP '+r.status));
+      }
+      const j = await r.json();
+      if(j.private === false) toast('⚠ 这仓库是公开的，记账数据会裸奔，改成 Private');
+      else if(j.permissions && j.permissions.push) toast('连接 OK，可读写 ✓');
+      else toast('能连上，但没有推送权限（检查 Token 的 Contents 权限）');
+    }catch(e){ toast('连不上：'+e.message); }
+  };
+  $('btnSyncNow').onclick = function(){ syncNow(false); };
+  $('tglAuto').onclick = function(){
+    const cfg = syncCfg();
+    if(!cfg){ toast('先配置账号'); return; }
+    cfg.auto = !cfg.auto;
+    saveData(); renderToggle();
+    toast(cfg.auto ? '自动同步已开' : '自动同步已关');
+  };
+}
+
+/* ===================== 演示数据 ===================== */
+function loadDemo(){
+  const exp = store.categories.filter(c=>c.type==='expense');
+  const NOTES = {
+    food:['早饭','午饭','外卖','咖啡','买菜'], traffic:['地铁','打车','公交','加油'],
+    shopping:['日用','网购','衣服','护肤品'], fun:['电影','游戏','唱歌','展览'],
+    health:['药店','挂号','体检'], study:['买书','课程'], phone:['话费','宽带'],
+    gift:['随礼','生日礼物','请客'], other_e:['杂项','停车费']
+  };
+  const RANGE = {food:[12,45],traffic:[3,28],shopping:[29,260],fun:[20,140],health:[18,200],
+                 study:[28,180],phone:[30,99],gift:[88,480],other_e:[8,90]};
+  const recs = [];
+  const today = new Date();
+  for(let i=110;i>=0;i--){
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate()-i);
+    const ds = ymd(d);
+    const n = 1 + Math.floor(Math.random()*2);
+    for(let j=0;j<n;j++){
+      const c = exp[Math.floor(Math.random()*exp.length)];
+      const rg = RANGE[c.id] || [10,80];
+      const amt = Math.round((rg[0] + Math.random()*(rg[1]-rg[0]))*100);
+      const ns = NOTES[c.id] || [];
+      recs.push({
+        id:'r_d'+i+'_'+j, type:'expense', amount:amt, catId:c.id,
+        date:ds, note:ns[Math.floor(Math.random()*ns.length)] || '',
+        ts:d.getTime()+j*60000
+      });
+    }
+    if(d.getDate()===1){
+      recs.push({id:'r_rent'+i, type:'expense', amount:250000, catId:'home', date:ds, note:'房租', ts:d.getTime()+1});
+    }
+    if(d.getDate()===10){
+      recs.push({id:'r_pay'+i, type:'income', amount:1280000, catId:'salary', date:ds, note:'工资', ts:d.getTime()+2});
+    }
+    if(d.getDate()===25 && Math.random()<.7){
+      recs.push({id:'r_pt'+i, type:'income', amount:Math.round(Math.random()*200000)+30000, catId:'parttime', date:ds, note:'外快', ts:d.getTime()+3});
+    }
+  }
+  store.records = recs;
+  store.tombstones = {};
+  touch();
+  S.month = monthOf(todayStr());
+  renderAll();
+  toast('已载入 '+recs.length+' 条演示数据');
+}
+
+/* ===================== 渲染总控 ===================== */
+function renderAll(){
+  renderCats(); renderPad(); updateDate(); updateNote(); renderAddFoot();
+  renderList(); renderStat(); renderMe();
+}
+
+/* ===================== 弹层 ===================== */
+function openSheet(el){
+  $('mask').classList.add('on');
+  el.classList.add('on');
+}
+function closeSheets(){
+  $('mask').classList.remove('on');
+  Array.prototype.forEach.call(document.querySelectorAll('.sheet'), function(s){ s.classList.remove('on'); });
+}
+
+/* ===================== Tab 切换 ===================== */
+function switchTab(t){
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function(x){ x.classList.toggle('on', x.dataset.tab===t); });
+  Array.prototype.forEach.call(document.querySelectorAll('.page'), function(p){ p.classList.toggle('active', p.id==='p-'+t); });
+  if(t==='list') renderList();
+  if(t==='stat') renderStat();
+  if(t==='me') renderMe();
+}
+
+/* ===================== 事件绑定 ===================== */
+function bind(){
+  /* Tab 切换 */
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function(b){
+    b.onclick = function(){ switchTab(b.dataset.tab); buzz(4); };
+  });
+
+  /* 支出 / 收入 */
+  Array.prototype.forEach.call(document.querySelectorAll('.seg-btn[data-type]'), function(b){
+    b.onclick = function(){
+      S.type = b.dataset.type;
+      Array.prototype.forEach.call(document.querySelectorAll('.seg-btn[data-type]'), function(x){
+        x.classList.toggle('on', x === b);
+        x.classList.toggle('inc', x.dataset.type==='income' && x===b);
+      });
+      S.catId = null;
+      renderCats();
+      $('amtBox').classList.toggle('inc', S.type==='income');
+      $('saveBtn').classList.toggle('inc', S.type==='income');
+    };
+  });
+
+  /* 统计类型 */
+  Array.prototype.forEach.call(document.querySelectorAll('.seg-btn[data-stype]'), function(b){
+    b.onclick = function(){
+      S.statType = b.dataset.stype;
+      Array.prototype.forEach.call(document.querySelectorAll('.seg-btn[data-stype]'), function(x){
+        x.classList.toggle('on', x === b);
+        x.classList.toggle('inc', x.dataset.stype==='income' && x===b);
+      });
+      renderStat();
+    };
+  });
+
+  /* 键盘 */
+  Array.prototype.forEach.call(document.querySelectorAll('.key'), function(b){
+    b.onclick = function(){ pressKey(b.dataset.k); buzz(5); };
+  });
+
+  /* 完成 */
+  $('saveBtn').onclick = saveRecord;
+
+  /* 备注 */
+  $('noteBtn').onclick = function(){
+    $('nsInput').value = S.note;
+    openSheet($('noteSheet'));
+    setTimeout(function(){ $('nsInput').focus(); }, 280);
+  };
+  $('nsCancel').onclick = closeSheets;
+  $('nsOk').onclick = function(){
+    S.note = $('nsInput').value.trim();
+    closeSheets(); updateNote();
+  };
+  $('nsInput').onkeydown = function(e){ if(e.key==='Enter') $('nsOk').click(); };
+
+  /* 日期 */
+  const di = document.createElement('input');
+  di.type = 'date';
+  di.style.cssText = 'position:absolute;left:-999px;width:1px;height:1px;opacity:0';
+  document.querySelector('.app').appendChild(di);
+  $('dateBtn').onclick = function(){
+    di.value = S.date;
+    try{ di.showPicker ? di.showPicker() : di.click(); }
+    catch(e){ di.click(); }
+  };
+  di.onchange = function(){
+    if(di.value){ S.date = di.value; updateDate(); renderAddFoot(); }
+  };
+
+  /* 月份切换 */
+  Array.prototype.forEach.call(document.querySelectorAll('[data-mv]'), function(b){
+    b.onclick = function(){
+      const next = shiftMonth(S.month, Number(b.dataset.mv));
+      if(next > monthOf(todayStr())) { toast('还没到那个月'); return; }
+      S.month = next;
+      renderList(); renderStat();
+    };
+  });
+
+  /* 明细：点一条编辑 */
+  $('listWrap').onclick = function(e){
+    const el = e.target.closest ? e.target.closest('.rec') : null;
+    if(el) openEdit(el.dataset.id);
+  };
+
+  /* 编辑弹层 */
+  let editingId = null;
+  window.openEdit = function(id){
+    const r = store.records.find(x=>x.id===id);
+    if(!r) return;
+    editingId = id;
+    $('edAmount').value = (r.amount/100).toFixed(2);
+    $('edDate').value = r.date;
+    $('edNote').value = r.note || '';
+    openSheet($('editSheet'));
+  };
+  $('edSave').onclick = function(){
+    const r = store.records.find(x=>x.id===editingId);
+    if(!r) return closeSheets();
+    const cents = Math.round((parseFloat($('edAmount').value)||0)*100);
+    if(cents <= 0){ toast('金额不对'); return; }
+    r.amount = cents;
+    r.date = $('edDate').value || r.date;
+    r.note = $('edNote').value.trim();
+    r.mt = Date.now();
+    touch();
+    closeSheets();
+    S.month = monthOf(r.date);
+    renderAll();
+    toast('已保存');
+  };
+  $('edDel').onclick = function(){
+    const r = store.records.find(x=>x.id===editingId);
+    if(!r) return closeSheets();
+    if(!confirm('删掉这一笔？'+getCat(r.catId).name+' ¥'+fmt(r.amount))) return;
+    /* 墓碑：记住这次删除，同步时让其他设备的这条记录也消失 */
+    store.tombstones[r.id] = Date.now();
+    store.records = store.records.filter(x=>x.id!==editingId);
+    touch();
+    closeSheets(); renderAll();
+    toast('已删除');
+  };
+
+  $('mask').onclick = closeSheets;
+
+  /* 我的 */
+  $('btnExport').onclick = exportJSON;
+  $('btnCSV').onclick = exportCSV;
+  $('btnDemo').onclick = function(){
+    if(store.records.length && !confirm('演示数据会覆盖当前 '+store.records.length+' 条记录。继续？')) return;
+    loadDemo();
+  };
+  $('btnImport').onclick = function(){ $('fileInput').click(); };
+  $('fileInput').onchange = function(e){
+    const f = e.target.files && e.target.files[0];
+    if(!f) return;
+    const reader = new FileReader();
+    reader.onload = function(){
+      try{
+        const d = JSON.parse(reader.result);
+        if(!d || !Array.isArray(d.records)) throw new Error('不是有效的备份文件');
+        if(!confirm('把备份里的 '+d.records.length+' 条并进当前账本（按 id 去重、同一笔取较新的），当前 '+store.records.length+' 条不会丢。确定？')) return;
+        /* 老备份没有 meta，用 exportedAt 补一个时间，否则分类会错误地被本地默认值盖掉 */
+        if(!d.meta) d.meta = { updatedAt:Date.parse(d.exportedAt || '') || Date.now() };
+        applyRemote(mergeAll(d));
+        touch(); renderAll();
+        toast('已合并，共 '+store.records.length+' 条' + (sess ? '，正在同步到云端' : ''));
+      }catch(err){ toast('读取失败：'+err.message); }
+    };
+    reader.readAsText(f);
+    e.target.value = '';
+  };
+  $('btnClear').onclick = function(){
+    if(!store.records.length) { toast('本来就是空的'); return; }
+    if(!confirm('清空全部 '+store.records.length+' 条记录？这个操作不能撤销。')) return;
+    if(!confirm('真的确定？建议先导出一份备份。')) return;
+    /* 全部记入墓碑：同步时另一台设备的记录也会一并消失 */
+    store.records.forEach(function(r){ store.tombstones[r.id] = Date.now(); });
+    store.records = [];
+    touch();
+    renderAll();
+    toast('已清空');
+  };
+}
+
+/* ===================== 启动 ===================== */
+loadData();
+bind();
+bindSync();
+bindAuth();
+renderAll();
+renderAcct();
+(function(){
+  const h = (location.hash||'').slice(1);
+  if(['list','stat','me'].indexOf(h) >= 0) switchTab(h);
+})();
+
+/* 有登录态就进应用并静默拉取；没有就停在登录页（也可以点「先本地用」跳过） */
+(function bootAuth(){
+  /* 从重置密码/确认邮箱的邮件链接回跳时，URL 里带着 access_token */
+  const pick = pickupHashSession();
+  if(pick && pick.err){
+    showAuth(true);
+    authMsg('err', '这个链接已经失效了，点「忘记密码」再发一封。');
+    return;
+  }
+  if(pick && sess){
+    (async function(){
+      await hydrateUser();
+      if(sess && sess.user && sess.user.id){
+        authMode = 'reset';
+        afterAuth();
+        showAuth(true);       /* 停在「设新密码」界面，设完自动进应用 */
+      }else{
+        sess = null; sessSave();
+        showAuth(true);
+        authMsg('err','这个链接已经失效了，点「忘记密码」再发一封。');
+      }
+    })();
+    return;
+  }
+  let raw = null;
+  try{ raw = JSON.parse(localStorage.getItem(SESS_KEY) || 'null'); }catch(e){}
+  if(raw && raw.refresh_token){
+    sess = raw;
+    ensureFresh().then(function(){
+      if(sess && sess.user && sess.user.id){
+        afterAuth();
+        showAuth(false);
+        renderAll(); renderMe(); renderAcct();
+        setTimeout(function(){ cloudSync(true); }, 500);
+      }else{
+        showAuth(true);
+      }
+    }).catch(function(){
+      sess = null; sessSave();
+      showAuth(true);
+    });
+    return;
+  }
+  showAuth(true);
+  if(!supaCfg()) openCfg();   /* 第一次打开：直接让他填后端地址 */
+})();
+
+/* 没登录但配了 GitHub 自动同步的，仍然静默拉一次 */
+if(!sess && syncCfg() && store.settings.sync.auto){
+  setTimeout(function(){ syncNow(true); }, 600);
+}
+if(!store.records.length && !$('authPage').classList.contains('on')){
+  setTimeout(function(){ toast('去「我的」可以载入演示数据'); }, 900);
+}
+</script>
+</body>
+</html>
