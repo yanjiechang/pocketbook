@@ -300,19 +300,45 @@ body{
 .btn-main{background:var(--brand);color:#fff}
 
 /* ============ 日期选择面板 ============ */
-.dquick{display:flex;gap:8px;margin:-4px 0 14px}
-.dquick button{
-  flex:1;height:38px;border:none;border-radius:10px;background:#F2F0E9;color:var(--ink2);
-  font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;transition:.15s;
+#dateSheet{max-height:calc(100% - 36px);overflow-y:auto;overflow-x:hidden}
+
+/* 近期日期横滑条 */
+.dstrip{
+  display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;
+  scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;
+  margin:0 -18px 0;padding:2px 18px 12px;
+  scrollbar-width:none;
 }
-.dquick button:active{background:#E7E4DB}
-.dhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.dstrip::-webkit-scrollbar{display:none}
+.dchip{
+  flex:0 0 auto;width:46px;height:58px;border:none;border-radius:13px;background:#F4F2EA;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  font-family:inherit;cursor:pointer;scroll-snap-align:center;transition:background .15s;
+}
+.dchip .w{font-size:10px;line-height:1;color:var(--ink3);letter-spacing:.04em}
+.dchip .d{font-size:16px;line-height:1;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.dchip.tdy .w{color:var(--brand);font-weight:700}
+.dchip.on{background:var(--brand)}
+.dchip.on .w,.dchip.on .d{color:#fff}
+.dchip:active{background:#E7E4DB}
+.dchip.on:active{background:var(--brand)}
+
+/* 分隔标题 */
+.dsec{
+  display:flex;align-items:center;gap:8px;
+  font-size:11px;color:var(--ink3);letter-spacing:.1em;
+  padding-top:12px;margin-bottom:10px;
+}
+.dsec::before,.dsec::after{content:'';height:1px;background:var(--line);flex:1}
+
+.dhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 .dhead .dtitle{font-size:14.5px;font-weight:700;letter-spacing:.02em}
 .dnav{
-  width:34px;height:34px;border:none;background:none;border-radius:9px;cursor:pointer;
+  width:36px;height:34px;border:none;background:none;border-radius:9px;cursor:pointer;
   font-family:inherit;font-size:20px;line-height:1;color:var(--ink2);padding:0;
 }
 .dnav:active{background:#F2F0E9}
+.dnav:disabled{color:#D8D5CC;cursor:default}
 .dweek{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:3px}
 .dweek span{text-align:center;font-size:11px;color:var(--ink3);padding:2px 0}
 .dgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
@@ -325,6 +351,21 @@ body{
 .dcell.tdy{color:var(--brand);font-weight:700}
 .dcell.on{background:var(--brand);color:#fff;font-weight:700}
 .dcell.fut{color:#C7C4BA}
+.dfoot{padding-top:14px}
+.dfoot button{
+  width:100%;height:42px;border:none;border-radius:11px;background:#F4F2EA;color:var(--ink2);
+  font-family:inherit;font-size:14.5px;font-weight:600;cursor:pointer;
+}
+.dfoot button:active{background:#E7E4DB}
+
+/* 矮屏：日历压一档，保证取消按钮不用滚动就可见 */
+@media (max-height:680px){
+  .dchip{width:44px;height:54px}
+  .dcell{height:34px;font-size:14px}
+  .dsec{padding-top:10px;margin-bottom:8px}
+  .dhead{margin-bottom:4px}
+  .dfoot{padding-top:12px}
+}
 
 /* ============ 登录 ============ */
 .authpage{
@@ -674,12 +715,8 @@ body{
 
     <div class="sheet" id="dateSheet">
       <div class="handle"></div>
-      <h3>选择日期</h3>
-      <div class="dquick">
-        <button data-q="0">今天</button>
-        <button data-q="-1">昨天</button>
-        <button data-q="-2">前天</button>
-      </div>
+      <div class="dstrip" id="dStrip"></div>
+      <div class="dsec">选择其他日期</div>
       <div class="dhead">
         <button class="dnav" data-dmv="-1" aria-label="上一月">‹</button>
         <div class="dtitle" id="dTitle"></div>
@@ -687,9 +724,7 @@ body{
       </div>
       <div class="dweek"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
       <div class="dgrid" id="dGrid"></div>
-      <div class="sheetacts">
-        <button class="btn-ghost" id="dCancel">取消</button>
-      </div>
+      <div class="dfoot"><button id="dCancel">取消</button></div>
     </div>
 
     <div class="sheet" id="noteSheet">
@@ -2184,12 +2219,45 @@ function bind(){
   };
   $('nsInput').onkeydown = function(e){ if(e.key==='Enter') $('nsOk').click(); };
 
-  /* 日期：自绘日历面板（不依赖原生 input[type=date]，避免 showPicker 兼容问题） */
+  /* 日期：自绘日历面板（不依赖原生 input[type=date]，避免 showPicker 兼容问题）
+     结构参考 Google Calendar / Airbnb 移动端：顶部横滑近期日期，下面月份网格兜底 */
   let dvy = 0, dvm = 0;
 
   function addDays(base, n){
     const p = base.split('-').map(Number);
     return ymd(new Date(p[0], p[1]-1, p[2]+n));
+  }
+
+  /* 顶部横滑条：近 14 天，最右是今天 */
+  function renderStrip(){
+    const t = todayStr();
+    let html = '';
+    for(let i = 13; i >= 0; i--){
+      const ds = addDays(t, -i);
+      const p = ds.split('-').map(Number);
+      const isT = (i === 0);
+      const cls = ['dchip'];
+      if(isT) cls.push('tdy');
+      if(ds === S.date) cls.push('on');
+      html += '<button class="'+cls.join(' ')+'" data-d="'+ds+'">'
+            +   '<span class="w">'+(isT ? '今天' : WD[new Date(p[0], p[1]-1, p[2]).getDay()])+'</span>'
+            +   '<span class="d">'+p[2]+'</span>'
+            + '</button>';
+    }
+    const strip = $('dStrip');
+    strip.innerHTML = html;
+    centerStrip();
+  }
+
+  /* 横滑条对齐：选中日在近 14 天内则居中显示它，否则停在「今天」这一端 */
+  function centerStrip(){
+    const strip = $('dStrip');
+    const onChip = strip.querySelector('.dchip.on');
+    if(onChip){
+      strip.scrollLeft = onChip.offsetLeft - (strip.clientWidth - onChip.offsetWidth) / 2;
+    }else{
+      strip.scrollLeft = strip.scrollWidth;
+    }
   }
 
   function renderDateSheet(){
@@ -2208,6 +2276,9 @@ function bind(){
       html += '<button class="'+cls.join(' ')+'" data-d="'+ds+'">'+d+'</button>';
     }
     $('dGrid').innerHTML = html;
+    // 视图已到当月（或更晚）就不能再往后翻，避免选到未来
+    const cur = dvy+'-'+pad(dvm);
+    document.querySelector('#dateSheet [data-dmv="1"]').disabled = (cur >= monthOf(t));
   }
 
   function pickDate(ds){
@@ -2221,13 +2292,21 @@ function bind(){
     const t = S.date || todayStr();
     dvy = Number(t.slice(0,4));
     dvm = Number(t.slice(5,7));
+    renderStrip();
     renderDateSheet();
     openSheet($('dateSheet'));
+    // 面板展开后宽度才确定，再对齐一次横滑条
+    requestAnimationFrame(centerStrip);
   };
-  $('dGrid').onclick = function(e){
-    const el = e.target.closest ? e.target.closest('.dcell[data-d]') : null;
+
+  /* 横滑条与网格共用同一个点击处理 */
+  function dateSheetClick(e){
+    const el = e.target.closest ? e.target.closest('[data-d]') : null;
     if(el) pickDate(el.dataset.d);
-  };
+  }
+  $('dStrip').onclick = dateSheetClick;
+  $('dGrid').onclick = dateSheetClick;
+
   Array.prototype.forEach.call(document.querySelectorAll('#dateSheet [data-dmv]'), function(b){
     b.onclick = function(){
       dvm += Number(b.dataset.dmv);
@@ -2235,9 +2314,6 @@ function bind(){
       if(dvm > 12){ dvm = 1; dvy++; }
       renderDateSheet();
     };
-  });
-  Array.prototype.forEach.call(document.querySelectorAll('#dateSheet [data-q]'), function(b){
-    b.onclick = function(){ pickDate(addDays(todayStr(), Number(b.dataset.q))); };
   });
   $('dCancel').onclick = closeSheets;
 
