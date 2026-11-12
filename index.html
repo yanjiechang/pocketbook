@@ -1143,7 +1143,10 @@ function bk(){
    anon public key 本来就是设计给前端公开用的，写在这里不构成泄密；
    唯一不能放进来的是 service_role key（它绕过 RLS）。
    本机 localStorage 里填过的值优先于这里，方便临时改项目。 */
-const PRESET_CFG = null;
+const PRESET_CFG = {
+  url: 'https://frjzxfdalkaqgdizxvfc.supabase.co',
+  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZyanp4ZmRhbGthcWdkaXp4dmZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0NjMwMjksImV4cCI6MjExMDAzOTAyOX0.S7OLOcG49W2p3Y3shBUiftzkHHu13YJkHY3FJT53cyQ'
+};
 /* 例：const PRESET_CFG = { url:'https://xxxxxxxx.supabase.co', key:'eyJhbGci...' }; */
 
 function supaCfg(){

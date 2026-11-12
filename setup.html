@@ -60,6 +60,12 @@ kbd{font-family:inherit;font-size:12.5px;background:#F1EFE8;border:1px solid var
 .ok-note{background:var(--brand-l);border-left:3px solid var(--brand);border-radius:0 9px 9px 0;
      padding:12px 16px;margin:10px 0 14px;font-size:13.5px;color:#0E4A3A;line-height:1.7}
 
+.donebanner{background:var(--brand-l);border:1px solid #BFE0D2;border-left:4px solid var(--brand);
+     border-radius:0 11px 11px 0;padding:16px 20px;margin:22px 0 8px;
+     font-size:14px;line-height:1.85;color:#0E4A3A}
+.donebanner b{color:#0A3D30}
+.donebanner a{color:var(--brand);text-decoration:underline}
+
 .hr{height:1px;background:var(--line);margin:44px 0 30px}
 h2.sec{font-size:20px;font-weight:800;margin:0 0 4px}
 .sdesc{font-size:13.5px;color:var(--ink2);margin:0 0 16px}
@@ -92,6 +98,13 @@ button.reset:hover{color:var(--bad);border-color:#E2CFCB}
     <p class="sub">01–06 做完，账就能跟着账号走、换设备不丢。07、08 可选。全部操作约 15 分钟，不用写代码。</p>
     <div class="prog"><div class="bar" id="bar"></div></div>
     <div class="ptxt" id="ptxt">0 / 13 已完成</div>
+  </div>
+
+  <div class="donebanner">
+    <b>这本账已经接好后端了，你不用做 01–05。</b>
+    后端地址和 anon key 已经写进 <code>index.html</code>，邮箱确认也已关闭。
+    现在只要打开 <a href="index.html">index.html</a>（或线上地址），
+    用邮箱 + 密码<b>注册一个账号</b>，就进去了。下面 01–05 是给"自己另建一个后端"的人看的，可以跳过。
   </div>
 
   <!-- 01 -->
@@ -142,7 +155,7 @@ button.reset:hover{color:var(--bad);border-color:#E2CFCB}
 
     <label class="it"><input type="checkbox" data-k="s6"><span class="tx">
       <b>Authentication → Sign In / Providers → Email → 关闭 Confirm email → Save</b>
-      <em>不关的话，注册虽然成功，但拿不到登录令牌，登录会一直报「邮箱或密码不对」——而你会以为是自己密码打错了。</em>
+      <em>不关的话，注册虽然成功，但拿不到登录令牌，登录会一直报「邮箱或密码不对」——而你会以为是自己密码打错了。<b>本项目已经是关闭状态</b>（自检返回 mailer_autoconfirm = true），不必再做。</em>
     </span></label>
   </div>
 
@@ -169,7 +182,7 @@ button.reset:hover{color:var(--bad);border-color:#E2CFCB}
 
     <label class="it"><input type="checkbox" data-k="s9"><span class="tx">
       <b>打开 <code>index.html</code>，点登录页右上角 ⚙</b>
-      <em>填 URL 和 key，点「测试连接」。它会一次查五件事：地址通不通、key 对不对、表建没建、RLS 有没有漏、Confirm email 关没关。</em>
+      <em>填 URL 和 key，点「测试连接」。它会一次查五件事：地址通不通、key 对不对、表建没建、RLS 有没有漏、Confirm email 关没关。<b>本项目这两个值已内置在代码里，打开就是登录页，不用再填。</b></em>
     </span></label>
 
     <label class="it"><input type="checkbox" data-k="s10"><span class="tx">
