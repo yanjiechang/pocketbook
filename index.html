@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#F4F3EF">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="记账">
-<title>记账</title>
+<meta name="apple-mobile-web-app-title" content="pocketbook">
+<title>pocketbook · 记账</title>
 <style>
 :root{
   --bg:#F4F3EF; --card:#FFFFFF; --ink:#1B1B19; --ink2:#6E6F66; --ink3:#A3A49B;
@@ -499,7 +499,7 @@ body{
         <div class="storecard">
           <div class="sc-title">数据存在哪</div>
           <div class="sc-row"><span>存储方式</span><b id="scMode">浏览器 localStorage</b></div>
-          <div class="sc-row"><span>数据键名</span><b class="num" id="scKey">jizhang_v1</b></div>
+          <div class="sc-row"><span>数据键名</span><b class="num" id="scKey">pocketbook_v1</b></div>
           <div class="sc-row"><span>当前来源</span><b class="num" id="scOrigin">—</b></div>
           <div class="sc-row"><span>可见范围</span><b id="scScope">仅此设备的此浏览器</b></div>
         </div>
@@ -637,7 +637,7 @@ body{
       </div>
       <div class="field">
         <label>仓库名（务必设为 Private）</label>
-        <input id="syRepo" type="text" placeholder="如 jizhang" autocomplete="off">
+        <input id="syRepo" type="text" placeholder="如 pocketbook-data" autocomplete="off">
       </div>
       <div class="field">
         <label>分支</label>
@@ -667,7 +667,22 @@ body{
 'use strict';
 
 /* ===================== 常量 ===================== */
-const KEY = 'jizhang_v1';
+const KEY = 'pocketbook_v1';
+
+/* 早期版本用的是 jizhang_ 前缀。改名前存过的数据不会丢：
+   首次在新键上找不到时，把老键的值搬过来，然后删掉老键。只搬一次。 */
+const LEGACY = { data:'jizhang_v1', cfg:'jizhang_supa_cfg', sess:'jizhang_supa_sess' };
+function lsMigrate(k, oldK){
+  try{
+    if(localStorage.getItem(k) != null) return;
+    const v = localStorage.getItem(oldK);
+    if(v != null){
+      localStorage.setItem(k, v);
+      localStorage.removeItem(oldK);
+    }
+  }catch(e){}
+}
+
 const WD = ['周日','周一','周二','周三','周四','周五','周六'];
 
 const DEFAULT_CATS = [
@@ -709,6 +724,7 @@ let memOnly = false;
 
 function loadData(){
   try{
+    lsMigrate(KEY, LEGACY.data);
     const raw = localStorage.getItem(KEY);
     if(raw){
       const d = JSON.parse(raw);
@@ -1028,7 +1044,7 @@ function download(text, name, mime){
 
 function exportJSON(){
   const payload = {
-    app:'jizhang', version:1,
+    app:'pocketbook', version:1,
     exportedAt:new Date().toISOString(),
     meta:{ updatedAt:Date.now(), device:deviceName() },
     records:store.records,
@@ -1096,8 +1112,8 @@ grant select, insert, update on public.ledgers to authenticated;
 -- 不建 delete 策略：前端永远删不掉整本账。
 -- 还要去 Authentication → Sign In / Providers → Email 关掉 Confirm email。`;
 
-const CFG_KEY  = 'jizhang_supa_cfg';
-const SESS_KEY = 'jizhang_supa_sess';
+const CFG_KEY  = 'pocketbook_supa_cfg';
+const SESS_KEY = 'pocketbook_supa_sess';
 
 let sess = null;          /* { access_token, refresh_token, expires_at, user:{id,email} } */
 let supaBusy = false;
@@ -1132,6 +1148,7 @@ const PRESET_CFG = null;
 
 function supaCfg(){
   try{
+    lsMigrate(CFG_KEY, LEGACY.cfg);
     const v = JSON.parse(localStorage.getItem(CFG_KEY) || 'null');
     if(v && v.url && v.key) return { url:v.url, key:v.key, type:v.type || 'supabase' };
   }catch(e){}
@@ -1678,7 +1695,7 @@ function bindAuth(){
 
 /* ===================== 云同步（GitHub 私有仓库） =====================
  * 原理：整份账本作为一个 JSON 文件推到你 GitHub 私有仓库的
- * jizhang/data.json，每次同步是一次 commit（git 历史 = 免费版本备份）。
+ * pocketbook/data.json，每次同步是一次 commit（git 历史 = 免费版本备份）。
  * 合并规则：按记录 id 取并集，同 id 取修改时间新者；删除靠墓碑；
  * 两边分类不一致时取"最后修改"一边。
  * 安全：token 只存本设备 localStorage，从不进云端文件。
@@ -1721,18 +1738,27 @@ function relTime(t){
   return Math.floor(s/86400)+' 天前';
 }
 
+/* 数据文件在「私有数据仓库」里的路径。老版本存在 jizhang/ 下，
+   这里读的时候两处都找一遍，写过一次就自然迁到 pocketbook/ 了。 */
+const GH_PATH = 'pocketbook/data.json';
+const GH_PATH_OLD = 'jizhang/data.json';
+
 async function ghGetFile(){
   const c = syncCfg();
-  const url = 'https://api.github.com/repos/'+c.owner+'/'+c.repo+
-             '/contents/jizhang/data.json?ref='+(c.branch||'main')+'&t='+Date.now();
-  const r = await fetch(url, {headers:ghHeaders(), cache:'no-store'});
-  if(r.status === 404) return null;
-  if(!r.ok){
-    const e = await r.json().catch(function(){ return {}; });
-    throw new Error('读取失败：'+(e.message || ('HTTP '+r.status)));
+  const paths = [GH_PATH, GH_PATH_OLD];
+  for(let i=0;i<paths.length;i++){
+    const url = 'https://api.github.com/repos/'+c.owner+'/'+c.repo+
+               '/contents/'+paths[i]+'?ref='+(c.branch||'main')+'&t='+Date.now();
+    const r = await fetch(url, {headers:ghHeaders(), cache:'no-store'});
+    if(r.status === 404) continue;
+    if(!r.ok){
+      const e = await r.json().catch(function(){ return {}; });
+      throw new Error('读取失败：'+(e.message || ('HTTP '+r.status)));
+    }
+    const j = await r.json();
+    return { sha:j.sha, data:JSON.parse(b64d(j.content)), oldPath:(paths[i] === GH_PATH_OLD) };
   }
-  const j = await r.json();
-  return { sha:j.sha, data:JSON.parse(b64d(j.content)) };
+  return null;
 }
 async function ghPutFile(payload, sha){
   const c = syncCfg();
@@ -1741,8 +1767,10 @@ async function ghPutFile(payload, sha){
     content:b64e(JSON.stringify(payload)),
     branch:c.branch||'main'
   };
+  /* 老文件在旧路径上：带上旧路径的 sha 会让 GitHub 以为要改那个文件，
+     所以这种情况不加 sha，直接在新路径建文件（旧文件留着无害）。 */
   if(sha) body.sha = sha;
-  const r = await fetch('https://api.github.com/repos/'+c.owner+'/'+c.repo+'/contents/jizhang/data.json', {
+  const r = await fetch('https://api.github.com/repos/'+c.owner+'/'+c.repo+'/contents/'+GH_PATH, {
     method:'PUT',
     headers:Object.assign({'Content-Type':'application/json'}, ghHeaders()),
     body:JSON.stringify(body)
@@ -1756,7 +1784,7 @@ async function ghPutFile(payload, sha){
 
 function buildPayload(){
   return {
-    app:'jizhang', version:1,
+    app:'pocketbook', version:1,
     meta:{ updatedAt:Date.now(), device:deviceName() },
     records:store.records,
     tombstones:store.tombstones || {},
@@ -1787,7 +1815,7 @@ function mergeAll(remote){
   const cats = remoteNewer ? (remote.categories||store.categories) : (store.categories||remote.categories);
   const lb = Math.max(store.settings.lastBackupAt||0, (remote.settings||{}).lastBackupAt||0);
   return {
-    app:'jizhang', version:1,
+    app:'pocketbook', version:1,
     meta:{ updatedAt:Date.now(), device:deviceName() },
     records:records, tombstones:tomb, categories:cats,
     settings:{ lastBackupAt:lb }
@@ -1823,7 +1851,8 @@ async function syncNow(silent, isRetry){
       } else {
         /* 至少本地有改动：合并（远端可能也被另一台设备改了） */
         const p = mergeAll(remote.data);
-        await ghPutFile(p, remote.sha);
+        /* 老路径上的 sha 不能用来改新路径，否则 GitHub 会 409 */
+        await ghPutFile(p, remote.oldPath ? null : remote.sha);
         applyRemote(p);
         store.settings.lastSyncRemoteAt = p.meta.updatedAt;
       }
@@ -2209,7 +2238,10 @@ renderAcct();
     return;
   }
   let raw = null;
-  try{ raw = JSON.parse(localStorage.getItem(SESS_KEY) || 'null'); }catch(e){}
+  try{
+    lsMigrate(SESS_KEY, LEGACY.sess);
+    raw = JSON.parse(localStorage.getItem(SESS_KEY) || 'null');
+  }catch(e){}
   if(raw && raw.refresh_token){
     sess = raw;
     ensureFresh().then(function(){
