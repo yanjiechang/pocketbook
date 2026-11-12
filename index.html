@@ -332,7 +332,30 @@ body{
 .dsec::before,.dsec::after{content:'';height:1px;background:var(--line);flex:1}
 
 .dhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-.dhead .dtitle{font-size:14.5px;font-weight:700;letter-spacing:.02em}
+.dtitle{
+  border:none;background:none;font-family:inherit;padding:6px 9px;border-radius:9px;
+  font-size:15px;font-weight:700;letter-spacing:.02em;color:var(--ink);cursor:pointer;
+  display:flex;align-items:center;gap:6px;
+}
+.dtitle:active{background:#F2F0E9}
+.dtitle:disabled{background:none;color:var(--ink);cursor:default;font-variant-numeric:tabular-nums}
+.dtitle .car{
+  width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;
+  border-top:5px solid var(--ink3);
+}
+/* 月 / 年 选择网格 */
+.dmgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:4px 0 2px}
+.dmcell{
+  height:56px;border:none;border-radius:12px;background:#F5F3EC;color:var(--ink);
+  font-family:inherit;font-size:14.5px;font-weight:600;cursor:pointer;
+  font-variant-numeric:tabular-nums;transition:background .12s;
+}
+.dmcell:active{background:#E9E6DD}
+.dmcell.cur{background:var(--brand);color:#fff;font-weight:700}
+.dmcell.cur:active{background:var(--brand)}
+.dmcell:disabled{background:#FAF8F2;color:#C9C6BC;cursor:default}
+.dmcell.cur:disabled{background:var(--brand);color:#fff}
+.dmgrid.dy .dmcell{height:50px;font-size:15px}
 .dnav{
   width:36px;height:34px;border:none;background:none;border-radius:9px;cursor:pointer;
   font-family:inherit;font-size:20px;line-height:1;color:var(--ink2);padding:0;
@@ -351,12 +374,13 @@ body{
 .dcell.tdy{color:var(--brand);font-weight:700}
 .dcell.on{background:var(--brand);color:#fff;font-weight:700}
 .dcell.fut{color:#C7C4BA}
-.dfoot{padding-top:14px}
+.dfoot{padding-top:14px;display:flex;gap:9px}
 .dfoot button{
-  width:100%;height:42px;border:none;border-radius:11px;background:#F4F2EA;color:var(--ink2);
+  flex:1;height:42px;border:none;border-radius:11px;background:#F4F2EA;color:var(--ink2);
   font-family:inherit;font-size:14.5px;font-weight:600;cursor:pointer;
 }
 .dfoot button:active{background:#E7E4DB}
+.dfoot #dToday{color:var(--brand);font-weight:700}
 
 /* 矮屏：日历压一档，保证取消按钮不用滚动就可见 */
 @media (max-height:680px){
@@ -715,16 +739,29 @@ body{
 
     <div class="sheet" id="dateSheet">
       <div class="handle"></div>
-      <div class="dstrip" id="dStrip"></div>
-      <div class="dsec">选择其他日期</div>
-      <div class="dhead">
-        <button class="dnav" data-dmv="-1" aria-label="上一月">‹</button>
-        <div class="dtitle" id="dTitle"></div>
-        <button class="dnav" data-dmv="1" aria-label="下一月">›</button>
+      <div id="dStripWrap">
+        <div class="dstrip" id="dStrip"></div>
+        <div class="dsec">选择其他日期</div>
       </div>
-      <div class="dweek"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
-      <div class="dgrid" id="dGrid"></div>
-      <div class="dfoot"><button id="dCancel">取消</button></div>
+      <div class="dhead">
+        <button class="dnav" id="dPrev" aria-label="上一页">‹</button>
+        <button class="dtitle" id="dTitle"></button>
+        <button class="dnav" id="dNext" aria-label="下一页">›</button>
+      </div>
+      <div id="dDayView">
+        <div class="dweek"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+        <div class="dgrid" id="dGrid"></div>
+      </div>
+      <div id="dMonthView" hidden>
+        <div class="dmgrid" id="dMonthGrid"></div>
+      </div>
+      <div id="dYearView" hidden>
+        <div class="dmgrid dy" id="dYearGrid"></div>
+      </div>
+      <div class="dfoot">
+        <button id="dToday">今天</button>
+        <button id="dCancel">取消</button>
+      </div>
     </div>
 
     <div class="sheet" id="noteSheet">
@@ -962,7 +999,9 @@ function updateDate(){
   const t = todayStr(), d = S.date;
   const p = d.split('-').map(Number);
   const wd = WD[new Date(p[0], p[1]-1, p[2]).getDay()];
-  $('dateLabel').textContent = p[1]+'月'+p[2]+'日 '+wd;
+  // 跨年补记（比如补去年的账）时带上年份，否则只写月日会误以为是今年
+  const yt = (p[0] === Number(t.slice(0,4))) ? '' : p[0]+'年';
+  $('dateLabel').textContent = yt+p[1]+'月'+p[2]+'日 '+wd;
   $('todayTag').style.display = (d===t) ? '' : 'none';
   $('backTip').textContent = (d===t) ? '' : '补记';
 }
@@ -2221,7 +2260,7 @@ function bind(){
 
   /* 日期：自绘日历面板（不依赖原生 input[type=date]，避免 showPicker 兼容问题）
      结构参考 Google Calendar / Airbnb 移动端：顶部横滑近期日期，下面月份网格兜底 */
-  let dvy = 0, dvm = 0;
+  let dvy = 0, dvm = 0, dyp = 0, dmode = 'day';
 
   function addDays(base, n){
     const p = base.split('-').map(Number);
@@ -2260,11 +2299,12 @@ function bind(){
     }
   }
 
-  function renderDateSheet(){
-    $('dTitle').textContent = dvy+'年'+dvm+'月';
+  /* 三级下钻：日 → 月 → 年（点标题向上钻，点格子向下钻），可直接跳到任意久远的日期 */
+  function renderDay(){
+    const t = todayStr();
+    $('dTitle').innerHTML = dvy+'年'+dvm+'月<span class="car"></span>';
     const lead = (new Date(dvy, dvm-1, 1).getDay() + 6) % 7;   // 周一为第一列
     const days = new Date(dvy, dvm, 0).getDate();
-    const t = todayStr();
     let html = '';
     for(let i=0;i<lead;i++) html += '<button class="dcell pad" tabindex="-1"></button>';
     for(let d=1; d<=days; d++){
@@ -2276,9 +2316,50 @@ function bind(){
       html += '<button class="'+cls.join(' ')+'" data-d="'+ds+'">'+d+'</button>';
     }
     $('dGrid').innerHTML = html;
-    // 视图已到当月（或更晚）就不能再往后翻，避免选到未来
-    const cur = dvy+'-'+pad(dvm);
-    document.querySelector('#dateSheet [data-dmv="1"]').disabled = (cur >= monthOf(t));
+    $('dPrev').disabled = false;
+    $('dNext').disabled = (dvy+'-'+pad(dvm) >= monthOf(t));
+  }
+
+  function renderMonthPick(){
+    const t = todayStr(), cy = Number(t.slice(0,4)), cm = Number(t.slice(5,7));
+    $('dTitle').innerHTML = dvy+'年<span class="car"></span>';
+    let html = '';
+    for(let m=1;m<=12;m++){
+      const cls = ['dmcell'];
+      if(dvy === cy && m === cm) cls.push('cur');
+      html += '<button class="'+cls.join(' ')+'" data-m="'+m+'"'
+            + ((dvy > cy || (dvy === cy && m > cm)) ? ' disabled' : '') + '>'+m+'月</button>';
+    }
+    $('dMonthGrid').innerHTML = html;
+    $('dPrev').disabled = false;
+    $('dNext').disabled = (dvy >= cy);
+  }
+
+  function renderYearPick(){
+    const cy = Number(todayStr().slice(0,4));
+    let html = '';
+    for(let y = dyp; y < dyp+12; y++){
+      const cls = ['dmcell'];
+      if(y === cy) cls.push('cur');
+      html += '<button class="'+cls.join(' ')+'" data-y="'+y+'"'
+            + (y > cy ? ' disabled' : '') + '>'+y+'</button>';
+    }
+    $('dYearGrid').innerHTML = html;
+    $('dTitle').innerHTML = dyp+'–'+(dyp+11);
+    $('dPrev').disabled = (dyp <= 1900);
+    $('dNext').disabled = (dyp+12 > cy);
+  }
+
+  function setDMode(m){
+    dmode = m;
+    $('dDayView').hidden   = (m !== 'day');
+    $('dMonthView').hidden = (m !== 'month');
+    $('dYearView').hidden  = (m !== 'year');
+    $('dStripWrap').hidden = (m !== 'day');
+    $('dTitle').disabled   = (m === 'year');
+    if(m === 'day') renderDay();
+    else if(m === 'month') renderMonthPick();
+    else renderYearPick();
   }
 
   function pickDate(ds){
@@ -2292,14 +2373,35 @@ function bind(){
     const t = S.date || todayStr();
     dvy = Number(t.slice(0,4));
     dvm = Number(t.slice(5,7));
+    dyp = dvy - (dvy % 12);
+    setDMode('day');
     renderStrip();
-    renderDateSheet();
     openSheet($('dateSheet'));
     // 面板展开后宽度才确定，再对齐一次横滑条
     requestAnimationFrame(centerStrip);
   };
 
-  /* 横滑条与网格共用同一个点击处理 */
+  /* 点标题：日 → 月 → 年 */
+  $('dTitle').onclick = function(){
+    if(dmode === 'day') setDMode('month');
+    else if(dmode === 'month'){ dyp = dvy - (dvy % 12); setDMode('year'); }
+  };
+
+  /* 左右翻：日视图翻月，月视图翻年，年视图翻 12 年一页 */
+  $('dPrev').onclick = function(){
+    if(dmode === 'day'){ dvm--; if(dvm < 1){ dvm = 12; dvy--; } }
+    else if(dmode === 'month'){ dvy--; }
+    else { dyp -= 12; if(dyp < 1) dyp = 1; }
+    setDMode(dmode);
+  };
+  $('dNext').onclick = function(){
+    if(dmode === 'day'){ dvm++; if(dvm > 12){ dvm = 1; dvy++; } }
+    else if(dmode === 'month'){ dvy++; }
+    else { dyp += 12; }
+    setDMode(dmode);
+  };
+
+  /* 横滑条与日网格共用同一个点击处理 */
   function dateSheetClick(e){
     const el = e.target.closest ? e.target.closest('[data-d]') : null;
     if(el) pickDate(el.dataset.d);
@@ -2307,14 +2409,21 @@ function bind(){
   $('dStrip').onclick = dateSheetClick;
   $('dGrid').onclick = dateSheetClick;
 
-  Array.prototype.forEach.call(document.querySelectorAll('#dateSheet [data-dmv]'), function(b){
-    b.onclick = function(){
-      dvm += Number(b.dataset.dmv);
-      if(dvm < 1){ dvm = 12; dvy--; }
-      if(dvm > 12){ dvm = 1; dvy++; }
-      renderDateSheet();
-    };
-  });
+  /* 选了月份 → 回到日视图；选了年份 → 进入该年月视图 */
+  $('dMonthGrid').onclick = function(e){
+    const el = e.target.closest ? e.target.closest('[data-m]') : null;
+    if(!el) return;
+    dvm = Number(el.dataset.m);
+    setDMode('day');
+  };
+  $('dYearGrid').onclick = function(e){
+    const el = e.target.closest ? e.target.closest('[data-y]') : null;
+    if(!el) return;
+    dvy = Number(el.dataset.y);
+    setDMode('month');
+  };
+
+  $('dToday').onclick = function(){ pickDate(todayStr()); };
   $('dCancel').onclick = closeSheets;
 
   /* 月份切换 */
