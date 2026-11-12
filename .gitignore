@@ -4,3 +4,9 @@
 supabase-建表.sql
 记账备份_*.json
 记账明细_*.csv
+
+# 本地验证用的截图与脚手架，不进仓库
+*-preview.png
+me-device-info.png
+_selftest.html
+_shot.html
