@@ -331,6 +331,11 @@ body{
   font-size:14px;font-weight:600;margin-top:0;
 }
 .authbtn.ghost:active{border-color:var(--brand)}
+.authbtn.reg{
+  background:var(--brand-soft);color:#0F5442;border:1.5px solid rgba(20,107,84,.22);
+  font-size:14.5px;font-weight:700;margin-top:2px;
+}
+.authbtn.reg:active{border-color:var(--brand);transform:scale(.985)}
 .cfgnote{font-size:11.5px;color:var(--ink3);text-align:center;line-height:1.6;margin-top:2px}
 .cfgmysql{
   background:none;border:1px dashed var(--line);border-radius:12px;padding:10px;
@@ -571,6 +576,7 @@ body{
         </div>
         <div class="authmsg" id="authMsg"></div>
         <button class="authbtn" id="auGo">登录</button>
+        <button class="authbtn reg" id="auToggle">没有账号？注册一个新账号</button>
       </div>
 
       <div class="authform" id="authCfg" style="display:none">
@@ -589,7 +595,6 @@ body{
       </div>
 
       <div class="authfoot" id="authFoot">
-        <button class="authlink" id="auToggle">没有账号？注册一个</button>
         <div class="authalt">不想注册可以 <button id="auGuest">先在这台设备上用</button></div>
       </div>
     </div>
@@ -1461,8 +1466,9 @@ function renderAuthMode(){
   $('auPass').setAttribute('autocomplete', up ? 'new-password' : 'current-password');
   $('auPass').placeholder = up ? '设一个密码（至少 6 位）' : '密码';
   $('auForgetRow').style.display = up ? 'none' : '';
+  $('auToggle').className = 'authbtn ' + (up ? 'ghost' : 'reg');
   $('auToggle').style.display = '';
-  $('auToggle').textContent = up ? '已有账号？直接登录' : '没有账号？注册一个';
+  $('auToggle').textContent = up ? '已有账号？返回登录' : '没有账号？注册一个新账号';
   $('auGuest').parentNode.style.display = '';
 }
 function showAuth(on){
