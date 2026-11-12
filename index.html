@@ -31,11 +31,11 @@ body{
 .app{position:absolute;inset:0;display:flex;flex-direction:column}
 
 /* ============ 页面 ============ */
-.page{position:absolute;inset:0 0 64px 0;display:none;flex-direction:column;background:var(--bg)}
+.page{position:absolute;inset:0 0 calc(64px + env(safe-area-inset-bottom,0px)) 0;display:none;flex-direction:column;background:var(--bg)}
 .page.active{display:flex}
 
 /* ============ 顶部 ============ */
-.top{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 8px;flex:0 0 auto}
+.top{display:flex;align-items:center;justify-content:space-between;padding:12px 18px 6px;flex:0 0 auto}
 .datebtn{
   display:flex;align-items:center;gap:7px;background:none;border:none;font-size:15px;font-weight:600;
   color:var(--ink);padding:6px 2px;font-family:inherit;cursor:pointer;
@@ -60,20 +60,23 @@ body{
 
 /* ============ 分类宫格 ============ */
 .cats{
-  flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;
-  display:grid;grid-template-columns:repeat(4,1fr);gap:2px 2px;align-content:center;
-  padding:10px 10px 4px;
+  flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  display:grid;grid-template-columns:repeat(5,1fr);gap:2px;
+  align-content:center;
+  padding:4px 8px 2px;
 }
 .cat{
-  display:flex;flex-direction:column;align-items:center;gap:6px;padding:9px 0 7px;
+  display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 0 3px;
   background:none;border:none;cursor:pointer;font-family:inherit;border-radius:12px;
 }
 .cat .ic{
   width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;
   font-size:21px;background:#fff;transition:transform .14s,box-shadow .14s,background .14s;
   box-shadow:0 1px 2px rgba(0,0,0,.05);border:1.5px solid transparent;
+  width:clamp(40px,11.5vw,46px);height:clamp(40px,11.5vw,46px);
+  font-size:clamp(19px,5.4vw,21px);
 }
-.cat .nm{font-size:11.5px;color:var(--ink2);letter-spacing:.02em}
+.cat .nm{font-size:clamp(10.5px,2.9vw,11.5px);color:var(--ink2);letter-spacing:.02em;white-space:nowrap}
 .cat.on .ic{background:var(--brand-soft);border-color:var(--brand);transform:scale(1.04)}
 .cat.on .nm{color:var(--brand);font-weight:700}
 .cat:active .ic{transform:scale(.94)}
@@ -87,7 +90,7 @@ body{
 
 /* ============ 金额条 ============ */
 .amountbar{
-  display:flex;align-items:center;gap:10px;padding:10px 20px 8px;flex:0 0 auto;
+  display:flex;align-items:center;gap:10px;padding:8px 20px 6px;flex:0 0 auto;
   border-top:1px solid var(--line);background:var(--bg);
 }
 .notebtn{
@@ -102,9 +105,10 @@ body{
 .amt.inc .val{color:var(--income)}
 
 /* ============ 键盘 ============ */
-.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;padding:6px 12px 0;flex:0 0 auto}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:5px 12px 0;flex:0 0 auto}
 .key{
-  height:50px;border:none;border-radius:12px;background:#fff;font-family:inherit;
+  height:50px;border:0;border-radius:12px;background:#fff;font-family:inherit;
+  height:clamp(36px,6vh,50px);height:clamp(36px,6dvh,50px);
   font-size:21px;font-weight:600;color:var(--ink);cursor:pointer;
   box-shadow:0 1px 2px rgba(0,0,0,.06);transition:background .1s;
   display:flex;align-items:center;justify-content:center;
@@ -114,7 +118,8 @@ body{
 
 /* ============ 完成按钮 ============ */
 .save{
-  flex:0 0 auto;height:48px;margin:8px 12px 12px;border:none;border-radius:12px;
+  flex:0 0 auto;height:48px;margin:6px 12px 10px;border:none;border-radius:12px;
+  height:clamp(42px,5.4vh,48px);height:clamp(42px,5.4dvh,48px);
   background:var(--brand);color:#fff;font-family:inherit;font-size:16.5px;font-weight:700;
   letter-spacing:.04em;cursor:pointer;
 }
@@ -245,7 +250,8 @@ body{
 
 /* ============ Tabbar ============ */
 .tabbar{
-  position:absolute;left:0;right:0;bottom:0;height:64px;display:flex;z-index:20;
+  position:absolute;left:0;right:0;bottom:0;height:calc(64px + env(safe-area-inset-bottom,0px));
+  padding-bottom:env(safe-area-inset-bottom,0px);display:flex;z-index:20;
   background:rgba(252,251,248,.94);backdrop-filter:blur(14px);
   border-top:1px solid var(--line);
 }
@@ -374,8 +380,29 @@ body{
 }
 
 @media (max-width:520px){
-  body{background:var(--bg);display:block}
-  .phone{width:100%;height:100dvh;height:100vh;border-radius:0;box-shadow:none}
+  /* 高度以 JS 实测的 innerHeight（--app-h）为准：iOS Safari / 微信 WebView 里
+     100vh 取的是「大视口」，会被地址栏和工具栏吃掉一截，导致底部被裁。 */
+  body{background:var(--bg);display:block;height:var(--app-h,100dvh)}
+  .phone{width:100%;height:100%;border-radius:0;box-shadow:none}
+}
+
+/* 矮屏（小屏手机 + 浏览器工具栏占位）：整体收紧，保证分类两行完整可见 */
+@media (max-height:620px){
+  .top{padding:8px 16px 4px}
+  .cats{align-content:start;gap:0;padding:0 8px}
+  .cat{gap:1px;padding:1px 0}
+  .cat .ic{width:35px;height:35px;font-size:17px}
+  .cat .nm{font-size:10px}
+  .key{height:38px;font-size:19px}
+  .save{height:42px;margin:4px 12px 6px;font-size:15.5px}
+  .amountbar{padding:5px 18px 4px}
+  .amt .val{font-size:27px}
+}
+/* 极矮（横屏或分屏）：键盘再压一档 */
+@media (max-height:520px){
+  .key{height:32px;font-size:17px}
+  .cat .ic{width:32px;height:32px;font-size:15px}
+  .cats{padding:0 8px}
 }
 </style>
 </head>
@@ -665,6 +692,21 @@ body{
 </div>
 <script>
 'use strict';
+
+/* ===================== 视口高度 =====================
+   iOS Safari / 微信内置浏览器里 100vh 是「大视口」，比真正能看见的区域高
+   一截（顶部地址栏 + 底部工具栏），会让整页下部被裁掉、分类被迫滚动。
+   这里用 innerHeight 实测，写到 --app-h，CSS 以它作为唯一高度来源。 */
+(function fitViewport(){
+  function apply(){
+    var h = window.innerHeight || document.documentElement.clientHeight || 0;
+    if(h > 0) document.documentElement.style.setProperty('--app-h', h + 'px');
+  }
+  apply();
+  window.addEventListener('resize', apply);
+  window.addEventListener('orientationchange', function(){ setTimeout(apply, 120); });
+  window.addEventListener('pageshow', apply);
+})();
 
 /* ===================== 常量 ===================== */
 const KEY = 'pocketbook_v1';
