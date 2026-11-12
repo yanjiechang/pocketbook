@@ -299,6 +299,33 @@ body{
 .btn-del{background:#FBEBE9;color:var(--danger);flex:0 0 88px!important}
 .btn-main{background:var(--brand);color:#fff}
 
+/* ============ 日期选择面板 ============ */
+.dquick{display:flex;gap:8px;margin:-4px 0 14px}
+.dquick button{
+  flex:1;height:38px;border:none;border-radius:10px;background:#F2F0E9;color:var(--ink2);
+  font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;transition:.15s;
+}
+.dquick button:active{background:#E7E4DB}
+.dhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.dhead .dtitle{font-size:14.5px;font-weight:700;letter-spacing:.02em}
+.dnav{
+  width:34px;height:34px;border:none;background:none;border-radius:9px;cursor:pointer;
+  font-family:inherit;font-size:20px;line-height:1;color:var(--ink2);padding:0;
+}
+.dnav:active{background:#F2F0E9}
+.dweek{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:3px}
+.dweek span{text-align:center;font-size:11px;color:var(--ink3);padding:2px 0}
+.dgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.dcell{
+  height:38px;border:none;background:none;border-radius:10px;cursor:pointer;
+  font-family:inherit;font-size:14.5px;color:var(--ink);font-variant-numeric:tabular-nums;
+  display:flex;align-items:center;justify-content:center;transition:.12s;
+}
+.dcell.pad{visibility:hidden;pointer-events:none}
+.dcell.tdy{color:var(--brand);font-weight:700}
+.dcell.on{background:var(--brand);color:#fff;font-weight:700}
+.dcell.fut{color:#C7C4BA}
+
 /* ============ 登录 ============ */
 .authpage{
   position:absolute;inset:0;z-index:80;background:var(--bg);
@@ -642,6 +669,26 @@ body{
       <div class="sheetacts">
         <button class="btn-del" id="edDel">删除</button>
         <button class="btn-main" id="edSave">保存</button>
+      </div>
+    </div>
+
+    <div class="sheet" id="dateSheet">
+      <div class="handle"></div>
+      <h3>选择日期</h3>
+      <div class="dquick">
+        <button data-q="0">今天</button>
+        <button data-q="-1">昨天</button>
+        <button data-q="-2">前天</button>
+      </div>
+      <div class="dhead">
+        <button class="dnav" data-dmv="-1" aria-label="上一月">‹</button>
+        <div class="dtitle" id="dTitle"></div>
+        <button class="dnav" data-dmv="1" aria-label="下一月">›</button>
+      </div>
+      <div class="dweek"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+      <div class="dgrid" id="dGrid"></div>
+      <div class="sheetacts">
+        <button class="btn-ghost" id="dCancel">取消</button>
       </div>
     </div>
 
@@ -2137,19 +2184,62 @@ function bind(){
   };
   $('nsInput').onkeydown = function(e){ if(e.key==='Enter') $('nsOk').click(); };
 
-  /* 日期 */
-  const di = document.createElement('input');
-  di.type = 'date';
-  di.style.cssText = 'position:absolute;left:-999px;width:1px;height:1px;opacity:0';
-  document.querySelector('.app').appendChild(di);
+  /* 日期：自绘日历面板（不依赖原生 input[type=date]，避免 showPicker 兼容问题） */
+  let dvy = 0, dvm = 0;
+
+  function addDays(base, n){
+    const p = base.split('-').map(Number);
+    return ymd(new Date(p[0], p[1]-1, p[2]+n));
+  }
+
+  function renderDateSheet(){
+    $('dTitle').textContent = dvy+'年'+dvm+'月';
+    const lead = (new Date(dvy, dvm-1, 1).getDay() + 6) % 7;   // 周一为第一列
+    const days = new Date(dvy, dvm, 0).getDate();
+    const t = todayStr();
+    let html = '';
+    for(let i=0;i<lead;i++) html += '<button class="dcell pad" tabindex="-1"></button>';
+    for(let d=1; d<=days; d++){
+      const ds = dvy+'-'+pad(dvm)+'-'+pad(d);
+      const cls = ['dcell'];
+      if(ds === S.date) cls.push('on');
+      else if(ds === t) cls.push('tdy');
+      if(ds > t) cls.push('fut');
+      html += '<button class="'+cls.join(' ')+'" data-d="'+ds+'">'+d+'</button>';
+    }
+    $('dGrid').innerHTML = html;
+  }
+
+  function pickDate(ds){
+    S.date = ds;
+    closeSheets();
+    updateDate(); renderAddFoot();
+    buzz(6);
+  }
+
   $('dateBtn').onclick = function(){
-    di.value = S.date;
-    try{ di.showPicker ? di.showPicker() : di.click(); }
-    catch(e){ di.click(); }
+    const t = S.date || todayStr();
+    dvy = Number(t.slice(0,4));
+    dvm = Number(t.slice(5,7));
+    renderDateSheet();
+    openSheet($('dateSheet'));
   };
-  di.onchange = function(){
-    if(di.value){ S.date = di.value; updateDate(); renderAddFoot(); }
+  $('dGrid').onclick = function(e){
+    const el = e.target.closest ? e.target.closest('.dcell[data-d]') : null;
+    if(el) pickDate(el.dataset.d);
   };
+  Array.prototype.forEach.call(document.querySelectorAll('#dateSheet [data-dmv]'), function(b){
+    b.onclick = function(){
+      dvm += Number(b.dataset.dmv);
+      if(dvm < 1){ dvm = 12; dvy--; }
+      if(dvm > 12){ dvm = 1; dvy++; }
+      renderDateSheet();
+    };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('#dateSheet [data-q]'), function(b){
+    b.onclick = function(){ pickDate(addDays(todayStr(), Number(b.dataset.q))); };
+  });
+  $('dCancel').onclick = closeSheets;
 
   /* 月份切换 */
   Array.prototype.forEach.call(document.querySelectorAll('[data-mv]'), function(b){
