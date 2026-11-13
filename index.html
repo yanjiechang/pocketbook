@@ -848,15 +848,18 @@ function lsMigrate(k, oldK){
 
 const WD = ['周日','周一','周二','周三','周四','周五','周六'];
 
+/* 支出固定 10 个，5 列×2 行正好铺满，不多不少。
+   「通讯」已并入「居家」——话费宽带跟水电燃气一样是家里的固定开销，
+   单独一格不值当。老记录里的 phone 由 CAT_ALIAS 自动归到居家。 */
 const DEFAULT_CATS = [
   {id:'food',    name:'餐饮', icon:'🍚', type:'expense', color:'#E07A5F'},
   {id:'traffic', name:'交通', icon:'🚌', type:'expense', color:'#5B8DB8'},
   {id:'shopping',name:'购物', icon:'🛒', type:'expense', color:'#C86B98'},
   {id:'home',    name:'居家', icon:'🏠', type:'expense', color:'#8B7BB8'},
+  {id:'kids',    name:'育儿', icon:'🧸', type:'expense', color:'#E09A4E'},
   {id:'fun',     name:'娱乐', icon:'🎮', type:'expense', color:'#D9A62A'},
   {id:'health',  name:'医疗', icon:'💊', type:'expense', color:'#4FA3A0'},
   {id:'study',   name:'学习', icon:'📚', type:'expense', color:'#6B8E4E'},
-  {id:'phone',   name:'通讯', icon:'📱', type:'expense', color:'#7A8B99'},
   {id:'gift',    name:'人情', icon:'🎁', type:'expense', color:'#D4736B'},
   {id:'other_e', name:'其他', icon:'📦', type:'expense', color:'#9A9A92'},
   {id:'salary',  name:'工资', icon:'💰', type:'income',  color:'#2C7A5B'},
@@ -866,6 +869,12 @@ const DEFAULT_CATS = [
   {id:'refund',  name:'退款', icon:'↩️', type:'income',  color:'#5B8DB8'},
   {id:'other_i', name:'其他', icon:'📦', type:'income',  color:'#9A9A92'}
 ];
+
+/* 已合并掉的旧分类 → 新分类。这里只做「读时归并」，
+   不动历史记录本身：不管本地缓存还是云端旧数据，
+   显示、统计、导出一律按新分类走，多设备也不会打架。 */
+const CAT_ALIAS = { phone:'home' };
+function catKey(id){ return CAT_ALIAS[id] || id; }
 
 /* ===================== 数据层 ===================== */
 let store = {
@@ -894,7 +903,6 @@ function loadData(){
       if(d && Array.isArray(d.records)){
         store.records = d.records;
         store.tombstones = d.tombstones || {};
-        store.categories = (d.categories && d.categories.length) ? d.categories : DEFAULT_CATS.slice();
         store.updatedAt = d.updatedAt || 0;
         store.settings = Object.assign(
           { owner:null, lastBackupAt:null, sync:null, lastSyncAt:0, lastSyncRemoteAt:0, lastSyncErr:null },
@@ -903,6 +911,7 @@ function loadData(){
       }
     }
   }catch(e){ memOnly = true; }
+  normalizeCats();
 }
 function saveData(){
   try{ localStorage.setItem(KEY, JSON.stringify(store)); }
@@ -931,7 +940,14 @@ function fmt(cents){
 }
 function fmtMoney(cents){ return '¥' + fmt(cents); }
 function getCat(id){
-  return store.categories.find(c=>c.id===id) || {id:'_',name:'未分类',icon:'❔',color:'#9A9A92'};
+  const k = catKey(id);
+  return store.categories.find(c=>c.id===k) || {id:'_',name:'未分类',icon:'❔',color:'#9A9A92'};
+}
+/* 分类表以代码内置为准：本地缓存或云端旧 payload 里可能还留着
+   已经合并掉的分类（比如 phone），每次读回来都纠正一遍，
+   免得不同设备显示的分类数量对不上。 */
+function normalizeCats(){
+  store.categories = DEFAULT_CATS.slice();
 }
 function $(id){ return document.getElementById(id); }
 
@@ -1120,7 +1136,9 @@ function renderStat(){
   const total = rs.reduce((a,b)=>a+b.amount,0);
 
   const by = {};
-  rs.forEach(r=>{ by[r.catId] = (by[r.catId]||0) + r.amount; });
+  /* 按归并后的分类聚合：老的 phone 记录要算进 home，不然图里会单出一条「居家」
+     和一条已经不该存在的「通讯」。 */
+  rs.forEach(r=>{ const k = catKey(r.catId); by[k] = (by[k]||0) + r.amount; });
   let arr = Object.keys(by).map(id=>({c:getCat(id), v:by[id]})).sort((a,b)=>b.v-a.v);
 
   /* 环形图：前 6 项 + 其他 */
@@ -2186,6 +2204,7 @@ function applyRemote(p){
   store.records = p.records || [];
   store.tombstones = p.tombstones || {};
   if(Array.isArray(p.categories) && p.categories.length) store.categories = p.categories;
+  normalizeCats();
   if(p.settings && p.settings.lastBackupAt)
     store.settings.lastBackupAt = Math.max(store.settings.lastBackupAt||0, p.settings.lastBackupAt);
   store.updatedAt = (p.meta && p.meta.updatedAt) || Date.now();
@@ -2202,12 +2221,13 @@ function mergeAll(remote){
   const records = Object.keys(map).map(function(k){ return map[k]; })
     .filter(function(r){ return !tomb[r.id]; });
   const remoteNewer = ((remote.meta||{}).updatedAt||0) > (store.updatedAt||0);
-  const cats = remoteNewer ? (remote.categories||store.categories) : (store.categories||remote.categories);
+  /* store.categories 已在各处入口被 normalizeCats() 校正过，是唯一可信来源；
+     别再拿 remote 里的旧分类往回传，否则云端会一直留着已废弃的 phone。 */
   const lb = Math.max(store.settings.lastBackupAt||0, (remote.settings||{}).lastBackupAt||0);
   return {
     app:'pocketbook', version:1,
     meta:{ updatedAt:Date.now(), device:deviceName() },
-    records:records, tombstones:tomb, categories:cats,
+    records:records, tombstones:tomb, categories:store.categories || DEFAULT_CATS.slice(),
     settings:{ lastBackupAt:lb }
   };
 }
@@ -2361,11 +2381,12 @@ function loadDemo(){
   const NOTES = {
     food:['早饭','午饭','外卖','咖啡','买菜'], traffic:['地铁','打车','公交','加油'],
     shopping:['日用','网购','衣服','护肤品'], fun:['电影','游戏','唱歌','展览'],
-    health:['药店','挂号','体检'], study:['买书','课程'], phone:['话费','宽带'],
+    health:['药店','挂号','体检'], study:['买书','课程'], kids:['奶粉','尿不湿','玩具','绘本','幼儿园'],
+    home:['水电费','燃气','宽带','话费'],
     gift:['随礼','生日礼物','请客'], other_e:['杂项','停车费']
   };
   const RANGE = {food:[12,45],traffic:[3,28],shopping:[29,260],fun:[20,140],health:[18,200],
-                 study:[28,180],phone:[30,99],gift:[88,480],other_e:[8,90]};
+                 study:[28,180],kids:[30,320],home:[40,200],gift:[88,480],other_e:[8,90]};
   const recs = [];
   const today = new Date();
   for(let i=110;i>=0;i--){
